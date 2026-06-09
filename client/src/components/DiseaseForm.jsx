@@ -1,7 +1,7 @@
 // client/src/components/DiseaseForm.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { UploadCloud, Check, AlertCircle, X, Sparkles } from 'lucide-react';
+import { UploadCloud, Check, AlertCircle, X, Sparkles, Languages } from 'lucide-react';
 
 const DiseaseForm = ({ onDiseaseAdded }) => {
   const fileInputRef = useRef(null);
@@ -10,28 +10,41 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
   const [filePreview, setFilePreview] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   
+  // State for tracking which language section the admin is currently typing in
+  const [activeTab, setActiveTab] = useState('en'); // 'en' or 'am'
+  
   const [formData, setFormData] = useState({
-    disease_name: '',
+    disease_name: '', // Strict matching key for Python ML (e.g., 'Downey-Mildew')
     crop_id: '',
-    description: '',
-    symptoms: '',
-    causes: '',
-    treatment_organic: '',
-    treatment_chemical: '',
-    prevention_tips: '',
+    status: 'Active',
     image_url: '',
-    status: 'Active'
+    
+    // English Data Properties
+    display_name_en: '',
+    description_en: '',
+    symptoms_en: '',
+    causes_en: '',
+    treatment_organic_en: '',
+    treatment_chemical_en: '',
+    prevention_tips_en: '',
+
+    // Amharic Data Properties (አማርኛ)
+    display_name_am: '',
+    description_am: '',
+    symptoms_am: '',
+    causes_am: '',
+    treatment_organic_am: '',
+    treatment_chemical_am: '',
+    prevention_tips_am: ''
   });
 
   const [notification, setNotification] = useState({ text: '', isError: false });
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch option elements directly from your database layout
   useEffect(() => {
     const fetchDropdownCrops = async () => {
       try {
         const token = localStorage.getItem('token');
-        // Unifying route path to standard endpoints
         const res = await axios.get('http://localhost:5000/api/admin/crops', {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -41,12 +54,12 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
         }
       } catch (err) {
         console.error("Error loading selection parameters:", err);
-        // Clean development placeholder fallback values if data engine falls out offline
         setCrops([
-          { id: 1, crop_name: 'Wheat' },
-          { id: 2, crop_name: 'Maize' },
-          { id: 3, crop_name: 'Coffee' },
-          { id: 4, crop_name: 'Potato' }
+          { id: 1, crop_name: 'apple' },
+          { id: 2, crop_name: 'banana' },
+          { id: 5, crop_name: 'coffee' },
+          { id: 11, crop_name: 'maize' },
+          { id: 20, crop_name: 'rice' }
         ]);
       }
     };
@@ -70,10 +83,7 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
     if (file && file.type.startsWith('image/')) {
       setSelectedFile(file);
       setFilePreview(URL.createObjectURL(file));
-      
-      // For standalone deployments: use fallback image strings
-      // Replace with your remote storage provider string if multi-part files are not used
-      setFormData(prev => ({ ...prev, image_url: `https://images.unsplash.com/photo-1592417817098-8f3d6eb19675?auto=format&fit=crop&w=600&q=80` }));
+      setFormData(prev => ({ ...prev, image_url: `uploads/${Date.now()}-${file.name}` }));
     }
   };
 
@@ -104,14 +114,7 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
 
     try {
       const token = localStorage.getItem('token');
-      
-      // If handling simple JSON payload properties:
       const submissionData = { ...formData };
-
-      // NOTE FOR BINARY STORAGE: If your backend handles Multer multi-parts directly, swap to:
-      // const submissionData = new FormData();
-      // Object.keys(formData).forEach(key => submissionData.append(key, formData[key]));
-      // if (selectedFile) submissionData.append('image', selectedFile);
 
       const config = {
         headers: {
@@ -123,22 +126,23 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
       const res = await axios.post('http://localhost:5000/api/admin/diseases', submissionData, config);
       
       if (res.data.success) {
-        setNotification({ text: res.data.message || 'Reference file locked securely into database schema!', isError: false });
+        setNotification({ text: 'Disease data profile integrated successfully into multi-language schema!', isError: false });
         
-        // Return values cleanly to defaults
+        // Reset state perfectly
         setFormData({
-          disease_name: '', crop_id: '', description: '', symptoms: '',
-          causes: '', treatment_organic: '', treatment_chemical: '',
-          prevention_tips: '', image_url: '', status: 'Active'
+          disease_name: '', crop_id: '', status: 'Active', image_url: '',
+          display_name_en: '', description_en: '', symptoms_en: '', causes_en: '', treatment_organic_en: '', treatment_chemical_en: '', prevention_tips_en: '',
+          display_name_am: '', description_am: '', symptoms_am: '', causes_am: '', treatment_organic_am: '', treatment_chemical_am: '', prevention_tips_am: ''
         });
         setSelectedFile(null);
         setFilePreview('');
+        setActiveTab('en');
 
         if (onDiseaseAdded) onDiseaseAdded();
       }
     } catch (err) {
       setNotification({
-        text: err.response?.data?.message || err.response?.data?.msg || 'Access authorization rejected or backend parameters mismatched.',
+        text: err.response?.data?.message || 'Failed to submit form parameters. Check your server validation mapping layers.',
         isError: true
       });
     } finally {
@@ -151,10 +155,10 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
       <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
         <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
           <Sparkles className="text-emerald-500" size={18} />
-          Ingestion Form Wizard
+          Bilingual Advisory Ingestion Panel
         </h2>
         <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 bg-slate-200/60 px-2 py-0.5 rounded">
-          Secure API
+          MySQL Pipeline
         </span>
       </div>
 
@@ -162,174 +166,240 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
         
         {notification.text && (
           <div className={`p-4 rounded-xl border flex items-start gap-3 text-sm font-medium ${
-            notification.isError 
-              ? 'bg-rose-50 text-rose-700 border-rose-100' 
-              : 'bg-emerald-50 text-emerald-800 border-emerald-100'
+            notification.isError ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-emerald-50 text-emerald-800 border-emerald-100'
           }`}>
             {notification.isError ? <AlertCircle size={18} className="shrink-0 mt-0.5" /> : <Check size={18} className="shrink-0 mt-0.5" />}
             <span>{notification.text}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Disease Name *</label>
-            <input 
-              type="text" 
-              name="disease_name"
-              value={formData.disease_name}
-              onChange={handleInputChange}
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 font-medium text-slate-800"
-              placeholder="e.g., Late Blight"
-              required 
-            />
+        {/* Global Core Properties */}
+        <div className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-xl space-y-4">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">1. Machine Learning Identifiers</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">Raw ML Disease Key * (Matches predict.py string output)</label>
+              <input 
+                type="text" 
+                name="disease_name"
+                value={formData.disease_name}
+                onChange={handleInputChange}
+                className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 font-mono text-slate-800"
+                placeholder="e.g., Downey-Mildew or Anthracnose"
+                required 
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">Target Host Crop *</label>
+              <select 
+                name="crop_id"
+                value={formData.crop_id}
+                onChange={handleInputChange}
+                className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 font-medium text-slate-700"
+                required
+              >
+                <option value="">Select Trained Target Crop...</option>
+                {crops.map(crop => (
+                  <option key={crop.id} value={crop.id}>{crop.crop_name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Affected Host Crop *</label>
-            <select 
-              name="crop_id"
-              value={formData.crop_id}
-              onChange={handleInputChange}
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 font-medium text-slate-700"
-              required
-            >
-              <option value="">Choose matching row...</option>
-              {crops.map(crop => (
-                <option key={crop.id} value={crop.id}>{crop.crop_name}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">System Status</label>
+              <select 
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+                className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 font-medium text-slate-700"
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+            
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">Image File Context Reference</label>
+              <div 
+                onClick={() => fileInputRef.current.click()}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-xl p-2.5 text-center cursor-pointer transition-all duration-200 h-[46px] flex items-center justify-center ${
+                  isDragging ? 'border-emerald-500 bg-emerald-50/40' : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
+                {filePreview ? (
+                  <div className="flex items-center gap-2 text-xs text-emerald-700 font-medium">
+                    <Check size={14} /> Attachment Ready ({selectedFile?.name.substring(0, 15)}...) 
+                    <X size={14} className="text-slate-400 hover:text-rose-500 ml-2" onClick={clearSelectedFile} />
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+                    <UploadCloud size={14} className="text-slate-400" /> Drag or <span className="text-emerald-600">click to append preview image</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-1">
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">System Status</label>
-            <select 
-              name="status"
-              value={formData.status}
-              onChange={handleInputChange}
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 font-medium text-slate-700"
+        {/* Localized Content Section with Tab Switcher */}
+        <div className="border border-slate-200 rounded-xl overflow-hidden">
+          <div className="bg-slate-100/80 p-1 flex border-b border-slate-200 gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('en')}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all duration-150 flex items-center justify-center gap-2 ${
+                activeTab === 'en' ? 'bg-white text-slate-900 shadow-xs border border-slate-200/40' : 'text-slate-500 hover:text-slate-800'
+              }`}
             >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
+              <Languages size={14} className="text-blue-500" />
+              English Fields
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('am')}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all duration-150 flex items-center justify-center gap-2 ${
+                activeTab === 'am' ? 'bg-white text-slate-900 shadow-xs border border-slate-200/40' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Languages size={14} className="text-amber-500" />
+              Amharic Fields (አማርኛ)
+            </button>
           </div>
 
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">General Overview Summary</label>
-            <input 
-              type="text" 
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 font-medium text-slate-800"
-              placeholder="Brief summary overview description..." 
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Reference Attachment Graphic</label>
-          <div 
-            onClick={() => fileInputRef.current.click()}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all duration-200 relative group flex flex-col items-center justify-center ${
-              isDragging 
-                ? 'border-emerald-500 bg-emerald-50/40' 
-                : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300'
-            }`}
-          >
-            <input 
-              type="file" 
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              accept="image/*"
-              className="hidden" 
-            />
-
-            {filePreview ? (
-              <div className="relative w-full h-32 rounded-lg overflow-hidden border bg-white flex items-center justify-center">
-                <img src={filePreview} alt="Preview" className="h-full object-contain" />
-                <button 
-                  type="button"
-                  onClick={clearSelectedFile}
-                  className="absolute top-2 right-2 p-1.5 bg-slate-900/80 hover:bg-slate-900 text-white rounded-full transition-colors backdrop-blur-xs"
-                >
-                  <X size={14} />
-                </button>
+          <div className="p-4 space-y-4">
+            {activeTab === 'en' ? (
+              /* ENGLISH INPUT TEMPLATE */
+              <div className="space-y-4 animation-fadeIn">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Friendly Display Name (English)</label>
+                  <input 
+                    type="text" name="display_name_en" value={formData.display_name_en} onChange={handleInputChange}
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800"
+                    placeholder="e.g., Downy Mildew disease"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">General Overview Summary</label>
+                  <input 
+                    type="text" name="description_en" value={formData.description_en} onChange={handleInputChange}
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800"
+                    placeholder="Brief description layout info for advisory cards..."
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Visual Symptoms</label>
+                    <textarea 
+                      name="symptoms_en" value={formData.symptoms_en} onChange={handleInputChange}
+                      className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800 h-20 resize-none"
+                      placeholder="Yellow spots on upper leaf surfaces, white fuzz below..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Root Biological Causes</label>
+                    <textarea 
+                      name="causes_en" value={formData.causes_en} onChange={handleInputChange}
+                      className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800 h-20 resize-none"
+                      placeholder="Oomycete pathogen spread via high ambient humidity conditions..."
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Organic Treatment Recommendation (Reads via Voice TTS)</label>
+                  <textarea 
+                    name="treatment_organic_en" value={formData.treatment_organic_en} onChange={handleInputChange}
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800 h-20 resize-none"
+                    placeholder="Apply copper fungicide mixtures, prune infected low branches..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Chemical Treatment Protocol</label>
+                  <textarea 
+                    name="treatment_chemical_en" value={formData.treatment_chemical_en} onChange={handleInputChange}
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800 h-20 resize-none"
+                    placeholder="Spraying systemic commercial protective fungicides immediately..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Long-term Prevention Guidelines</label>
+                  <input 
+                    type="text" name="prevention_tips_en" value={formData.prevention_tips_en} onChange={handleInputChange}
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800"
+                    placeholder="Ensure adequate plant spacing, rotate crops systematically..."
+                  />
+                </div>
               </div>
             ) : (
-              <>
-                <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-400 group-hover:text-emerald-600 group-hover:border-emerald-100 shadow-xs transition-colors mb-2">
-                  <UploadCloud size={20} />
+              /* AMHARIC INPUT TEMPLATE */
+              <div className="space-y-4 animation-fadeIn">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">የበሽታው አማርኛ መጠሪያ (Friendly Display Name)</label>
+                  <input 
+                    type="text" name="display_name_am" value={formData.display_name_am} onChange={handleInputChange}
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800"
+                    placeholder="ምሳሌ፡ ዶውኒ ሚልዲው በሽታ"
+                  />
                 </div>
-                <p className="text-xs font-bold text-slate-700">Drag your image file here or <span className="text-emerald-600">browse</span></p>
-                <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Supports PNG, JPG, or WEBP files up to 5MB</p>
-              </>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">አጠቃላይ ማጠቃለያ መግለጫ (Overview Summary)</label>
+                  <input 
+                    type="text" name="description_am" value={formData.description_am} onChange={handleInputChange}
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800"
+                    placeholder="በካርዶች ላይ የሚታይ አጭር የበሽታው ማብራሪያ..."
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">የሚታዩ ምልክቶች (Visual Symptoms)</label>
+                    <textarea 
+                      name="symptoms_am" value={formData.symptoms_am} onChange={handleInputChange}
+                      className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800 h-20 resize-none"
+                      placeholder="በቅጠሎች ላይ ቢጫ ነጠብጣቦች መታየት፣ ከቅጠሉ ጀርባ ነጭ ፈንገስ..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">የበሽታው መንስኤዎች (Biological Causes)</label>
+                    <textarea 
+                      name="causes_am" value={formData.causes_am} onChange={handleInputChange}
+                      className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800 h-20 resize-none"
+                      placeholder="ከፍተኛ እርጥበት ባለው የአየር ንብረት ምክንያት የሚፈጠር የፈንገስ ስርጭት..."
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">ኦርጋኒክ ሕክምና - በድምፅ የሚነበብ (Organic Treatment Voice TTS Source)</label>
+                  <textarea 
+                    name="treatment_organic_am" value={formData.treatment_organic_am} onChange={handleInputChange}
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800 h-20 resize-none"
+                    placeholder="የመዳብ ድብልቅ ፈሳሽ ይርጩ፣ የተጠቁ ዝቅተኛ ቅርንጫፎችን ቆርጠው ያስወግዱ..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">ኬሚካላዊ ሕክምና (Chemical Treatment)</label>
+                  <textarea 
+                    name="treatment_chemical_am" value={formData.treatment_chemical_am} onChange={handleInputChange}
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800 h-20 resize-none"
+                    placeholder="የፈንገስ ማጥፊያ የንግድ ኬሚካሎችን በተመጠነ መጠን ወዲያውኑ መርጨት..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">የረጅም ጊዜ መከላከያ መንገዶች (Prevention Guidelines)</label>
+                  <input 
+                    type="text" name="prevention_tips_am" value={formData.prevention_tips_am} onChange={handleInputChange}
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white outline-none font-medium text-slate-800"
+                    placeholder="በተክሎች መካከል በቂ ርቀት መተው፣ የሰብል ፈራረቃን መተግበር..."
+                  />
+                </div>
+              </div>
             )}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Visual Symptoms</label>
-            <textarea 
-              name="symptoms"
-              value={formData.symptoms}
-              onChange={handleInputChange}
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 font-medium text-slate-800 h-20 resize-none"
-              placeholder="What structural visual markers should farmers notice..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Root Biological Causes</label>
-            <textarea 
-              name="causes"
-              value={formData.causes}
-              onChange={handleInputChange}
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 font-medium text-slate-800 h-20 resize-none"
-              placeholder="Fungal distribution paths, environmental stressors..."
-            />
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Organic Treatment Recommendation</label>
-            <textarea 
-              name="treatment_organic"
-              value={formData.treatment_organic}
-              onChange={handleInputChange}
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 font-medium text-slate-800 h-24 resize-none"
-              placeholder="Natural mitigations, cultural field actions, native treatments..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Chemical Treatment Protocol</label>
-            <textarea 
-              name="treatment_chemical"
-              value={formData.treatment_chemical}
-              onChange={handleInputChange}
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 font-medium text-slate-800 h-24 resize-none"
-              placeholder="Approved molecular fungicides, precise dosage guidelines..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Long-term Prevention Guidelines</label>
-            <input 
-              type="text" 
-              name="prevention_tips"
-              value={formData.prevention_tips}
-              onChange={handleInputChange}
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 font-medium text-slate-800"
-              placeholder="Crop spacing configurations, robust seed variants..." 
-            />
           </div>
         </div>
 
@@ -339,7 +409,7 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
             disabled={submitting}
             className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white font-bold py-3 rounded-xl text-sm shadow-md transition-all duration-150 active:scale-[0.99]"
           >
-            {submitting ? 'Writing to MySQL...' : 'Commit Protocol Entry'}
+            {submitting ? 'Updating MySQL Matrix...' : 'Commit Protocol Entry'}
           </button>
         </div>
 

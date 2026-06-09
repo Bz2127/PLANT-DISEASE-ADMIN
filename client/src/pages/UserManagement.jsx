@@ -1,7 +1,6 @@
-// client/src/pages/UserManagement.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Users, ShieldAlert, Globe, MapPin, UserCheck, Search } from 'lucide-react';
+import { Users, ShieldAlert, Globe, MapPin, UserCheck, Search, Phone } from 'lucide-react';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -15,7 +14,10 @@ const UserManagement = () => {
       const res = await axios.get('http://localhost:5000/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.data.success) setUsers(res.data.data);
+      if (res.data.success) {
+        const finalUserList = res.data.users ? res.data.users : (res.data.data || []);
+        setUsers(Array.isArray(finalUserList) ? finalUserList : []);
+      }
     } catch (err) {
       console.error("Error loading user records:", err);
     } finally {
@@ -44,8 +46,8 @@ const UserManagement = () => {
   };
 
   const filteredUsers = users.filter(user => 
-    user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (user.full_name && user.full_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (user.phone_number && user.phone_number.includes(searchQuery)) ||
     (user.location && user.location.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
@@ -62,12 +64,11 @@ const UserManagement = () => {
           </div>
         </div>
 
-        {/* Dynamic Search Workspace */}
         <div className="relative min-w-[300px]">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text"
-            placeholder="Search name, email, or region..."
+            placeholder="Search name, phone, or region..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-11 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
@@ -75,7 +76,6 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* Main Table Interface Card Container */}
       <div className="max-w-7xl mx-auto bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -101,8 +101,26 @@ const UserManagement = () => {
                 filteredUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-slate-50/40 transition-colors">
                     <td className="p-4 pl-6">
-                      <div className="font-bold text-slate-800">{user.full_name}</div>
-                      <div className="text-xs text-slate-400 mt-0.5 font-normal">{user.email}</div>
+                      <div className="flex items-center gap-3">
+                        {user.profile_image ? (
+                          <img 
+                            src={`http://localhost:5000${user.profile_image}`} 
+                            alt={user.full_name} 
+                            className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-sm uppercase border border-emerald-100">
+                            {user.full_name ? user.full_name.substring(0, 2) : 'FI'}
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-bold text-slate-800">{user.full_name}</div>
+                          <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5 font-normal">
+                            <Phone size={12} />
+                            {user.phone_number}
+                          </div>
+                        </div>
+                      </div>
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-1.5 text-slate-600">
@@ -113,29 +131,29 @@ const UserManagement = () => {
                     <td className="p-4">
                       <div className="flex items-center gap-1.5 text-slate-600">
                         <Globe size={15} className="text-slate-400" />
-                        {user.language_pref}
+                        {user.language_pref || "English"}
                       </div>
                     </td>
                     <td className="p-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
                         user.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
                       }`}>
-                        {user.status}
+                        {user.status || 'Active'}
                       </span>
                     </td>
                     <td className="p-4 pr-6 text-right">
                       <button
-                        onClick={() => toggleUserStatus(user.id, user.status)}
+                        onClick={() => toggleUserStatus(user.id, user.status || 'Active')}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                          user.status === 'Active'
-                            ? 'border-rose-100 text-rose-600 bg-rose-50/30 hover:bg-rose-50'
-                            : 'border-emerald-100 text-emerald-600 bg-emerald-50/30 hover:bg-emerald-50'
+                          user.status === 'Blocked'
+                            ? 'border-emerald-100 text-emerald-600 bg-emerald-50/30 hover:bg-emerald-50'
+                            : 'border-rose-100 text-rose-600 bg-rose-50/30 hover:bg-rose-50'
                         }`}
                       >
-                        {user.status === 'Active' ? (
-                          <> <ShieldAlert size={14} /> Revoke / Block </>
-                        ) : (
+                        {user.status === 'Blocked' ? (
                           <> <UserCheck size={14} /> Unblock Account </>
+                        ) : (
+                          <> <ShieldAlert size={14} /> Revoke / Block </>
                         )}
                       </button>
                     </td>

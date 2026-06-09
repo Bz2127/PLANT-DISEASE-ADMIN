@@ -27,13 +27,20 @@ const Admin = sequelize.define('Admin', {
     defaultValue: 'admin',
   }
 }, {
-  tableName: 'admins',   // Tell Sequelize to look for 'admins' (lowercase)
-  underscored: true,     // Tell Sequelize your database uses 'created_at' and 'updated_at'
+  tableName: 'admins',
+  underscored: true,
   timestamps: true       
 });
 
 Admin.beforeCreate(async (admin) => {
   if (admin.password) {
+    const salt = await bcrypt.genSalt(10);
+    admin.password = await bcrypt.hash(admin.password, salt);
+  }
+});
+
+Admin.beforeUpdate(async (admin) => {
+  if (admin.changed('password')) {
     const salt = await bcrypt.genSalt(10);
     admin.password = await bcrypt.hash(admin.password, salt);
   }

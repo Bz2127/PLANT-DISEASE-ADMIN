@@ -11,15 +11,14 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  email: {
-    type: DataTypes.STRING,
+  phone_number: {
+    type: DataTypes.STRING(50),
     allowNull: false,
     unique: true,
-    validate: { isEmail: true },
   },
   password: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
   },
   language_pref: {
     type: DataTypes.ENUM('English', 'Amharic'),
@@ -27,12 +26,20 @@ const User = sequelize.define('User', {
   },
   location: {
     type: DataTypes.STRING,
-    allowNull: true, // Farmers can update this later
+    allowNull: true,
+  },
+  profile_image: {
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   status: {
     type: DataTypes.ENUM('Active', 'Blocked'),
     defaultValue: 'Active',
   },
+}, {
+  tableName: 'users',
+  underscored: true,
+  timestamps: true
 });
 
 module.exports = User;

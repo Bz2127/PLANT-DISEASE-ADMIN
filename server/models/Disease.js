@@ -9,9 +9,20 @@ const Disease = sequelize.define('Disease', {
     primaryKey: true,
     autoIncrement: true
   },
+  // The exact raw string returned by the ML model (e.g. 'Anthracnose', 'Bacterial-Spot ', 'Downey-Mildew')
   disease_name: {
     type: DataTypes.STRING,
     allowNull: false,
+    unique: true // Guarantees we match unique ML signatures perfectly
+  },
+  // Friendly display names for UI screens
+  display_name_en: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  display_name_am: {
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   crop_id: {
     type: DataTypes.INTEGER,
@@ -20,22 +31,45 @@ const Disease = sequelize.define('Disease', {
       key: 'id',
     },
   },
-  description: {
+  // Localized descriptions
+  description_en: {
     type: DataTypes.TEXT,
   },
-  symptoms: {
+  description_am: {
     type: DataTypes.TEXT,
   },
-  causes: {
+  // Localized symptoms
+  symptoms_en: {
     type: DataTypes.TEXT,
   },
-  treatment_organic: {
+  symptoms_am: {
     type: DataTypes.TEXT,
   },
-  treatment_chemical: {
+  // Localized causes
+  causes_en: {
     type: DataTypes.TEXT,
   },
-  prevention_tips: {
+  causes_am: {
+    type: DataTypes.TEXT,
+  },
+  // Localized treatments (critical for Text-to-Speech playback strings)
+  treatment_organic_en: {
+    type: DataTypes.TEXT,
+  },
+  treatment_organic_am: {
+    type: DataTypes.TEXT,
+  },
+  treatment_chemical_en: {
+    type: DataTypes.TEXT,
+  },
+  treatment_chemical_am: {
+    type: DataTypes.TEXT,
+  },
+  // Localized prevention rules
+  prevention_tips_en: {
+    type: DataTypes.TEXT,
+  },
+  prevention_tips_am: {
     type: DataTypes.TEXT,
   },
   image_url: {
@@ -46,11 +80,11 @@ const Disease = sequelize.define('Disease', {
     defaultValue: 'Active',
   },
 }, {
-  tableName: 'diseases', // FIX: Forces Sequelize to use your exact lowercase table
+  tableName: 'diseases', 
   underscored: true,
 });
 
-// Establish relationship safely
+// Establish relationships cleanly
 Disease.belongsTo(Crop, { foreignKey: 'crop_id' });
 Crop.hasMany(Disease, { foreignKey: 'crop_id' });
 

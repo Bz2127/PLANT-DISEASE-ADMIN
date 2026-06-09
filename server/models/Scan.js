@@ -1,4 +1,3 @@
-// server/models/Scan.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/config');
 
@@ -11,6 +10,14 @@ const Scan = sequelize.define('Scan', {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
+  },
+  latitude: {
+    type: DataTypes.DECIMAL(10, 8),
+    allowNull: true,
+  },
+  longitude: {
+    type: DataTypes.DECIMAL(11, 8),
+    allowNull: true,
   },
   user_id: {
     type: DataTypes.INTEGER,
@@ -42,13 +49,17 @@ const Scan = sequelize.define('Scan', {
     defaultValue: DataTypes.NOW,
   },
 }, {
-  tableName: 'scans', // Target lowercase table exactly
-  underscored: true
+  tableName: 'scans',
+  underscored: true,
+  timestamps: true
 });
 
-// Explicitly register clean relations downstream 
 Scan.belongsTo(User, { foreignKey: 'user_id' });
 Scan.belongsTo(Crop, { foreignKey: 'crop_id' });
 Scan.belongsTo(Disease, { foreignKey: 'ai_predicted_disease_id' });
+
+User.hasMany(Scan, { foreignKey: 'user_id' });
+Crop.hasMany(Scan, { foreignKey: 'crop_id' });
+Disease.hasMany(Scan, { foreignKey: 'ai_predicted_disease_id' });
 
 module.exports = Scan;
