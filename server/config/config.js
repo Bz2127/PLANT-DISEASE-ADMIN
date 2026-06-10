@@ -1,8 +1,7 @@
-// server/config/config.js
 const { Sequelize } = require('sequelize');
 const dotenv = require('dotenv');
 
-dotenv.config(); // Load environment variables
+dotenv.config();
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -10,12 +9,23 @@ const sequelize = new Sequelize(
   process.env.DB_PASSWORD,
   {
     host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
     dialect: process.env.DB_DIALECT,
-    logging: false, // Set to true to see SQL queries in console
-    define: {
-      timestamps: true, // Adds createdAt and updatedAt fields automatically
-      underscored: true, // Use snake_case for column names
+
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
     },
+
+    logging: false,
+
+    define: {
+      timestamps: true,
+      underscored: true
+    },
+
     pool: {
       max: 5,
       min: 0,
@@ -30,13 +40,15 @@ const connectDB = async () => {
     await sequelize.authenticate();
     console.log('Connection to MySQL has been established successfully.');
 
-    // FIX: Set to false so your mock data never gets dropped or wiped on restart!
-    await sequelize.sync({ alter: false, force: false }); 
-    console.log('All models were synchronized successfully.');
+    await sequelize.sync({
+      alter: false,
+      force: false
+    });
 
+    console.log('All models were synchronized successfully.');
   } catch (error) {
     console.error('Unable to connect to the database:', error);
-    process.exit(1); // Exit process with failure
+    process.exit(1);
   }
 };
 
