@@ -1,4 +1,3 @@
-// client/src/components/DiseaseForm.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { UploadCloud, Check, AlertCircle, X, Sparkles, Languages } from 'lucide-react';
@@ -9,17 +8,14 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState('');
   const [isDragging, setIsDragging] = useState(false);
-  
-  // State for tracking which language section the admin is currently typing in
-  const [activeTab, setActiveTab] = useState('en'); // 'en' or 'am'
+  const [activeTab, setActiveTab] = useState('en');
   
   const [formData, setFormData] = useState({
-    disease_name: '', // Strict matching key for Python ML (e.g., 'Downey-Mildew')
+    disease_name: '',
     crop_id: '',
     status: 'Active',
     image_url: '',
     
-    // English Data Properties
     display_name_en: '',
     description_en: '',
     symptoms_en: '',
@@ -28,7 +24,6 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
     treatment_chemical_en: '',
     prevention_tips_en: '',
 
-    // Amharic Data Properties (አማርኛ)
     display_name_am: '',
     description_am: '',
     symptoms_am: '',
@@ -123,12 +118,23 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
         }
       };
 
-      const res = await axios.post('http://localhost:5000/api/admin/diseases', submissionData, config);
+      const checkExist = await axios.get(
+        `http://localhost:5000/api/admin/diseases/verify?name=${encodeURIComponent(formData.disease_name)}`, 
+        config
+      ).catch(() => null);
+
+      let res;
+
+      if (checkExist && checkExist.data.exists) {
+        const existingId = checkExist.data.id;
+        res = await axios.put(`http://localhost:5000/api/admin/diseases/${existingId}`, submissionData, config);
+      } else {
+        res = await axios.post('http://localhost:5000/api/admin/diseases', submissionData, config);
+      }
       
       if (res.data.success) {
-        setNotification({ text: 'Disease data profile integrated successfully into multi-language schema!', isError: false });
+        setNotification({ text: 'Disease data profile integrated and verified successfully in MySQL framework!', isError: false });
         
-        // Reset state perfectly
         setFormData({
           disease_name: '', crop_id: '', status: 'Active', image_url: '',
           display_name_en: '', description_en: '', symptoms_en: '', causes_en: '', treatment_organic_en: '', treatment_chemical_en: '', prevention_tips_en: '',
@@ -142,7 +148,7 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
       }
     } catch (err) {
       setNotification({
-        text: err.response?.data?.message || 'Failed to submit form parameters. Check your server validation mapping layers.',
+        text: err.response?.data?.message || 'Verification execution error. Check local server terminal console logs.',
         isError: true
       });
     } finally {
@@ -173,7 +179,6 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
           </div>
         )}
 
-        {/* Global Core Properties */}
         <div className="bg-slate-50/50 p-4 border border-slate-200/60 rounded-xl space-y-4">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">1. Machine Learning Identifiers</p>
           
@@ -249,7 +254,6 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
           </div>
         </div>
 
-        {/* Localized Content Section with Tab Switcher */}
         <div className="border border-slate-200 rounded-xl overflow-hidden">
           <div className="bg-slate-100/80 p-1 flex border-b border-slate-200 gap-1">
             <button
@@ -275,8 +279,7 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
           </div>
 
           <div className="p-4 space-y-4">
-            {activeTab === 'en' ? (
-              /* ENGLISH INPUT TEMPLATE */
+            ={activeTab === 'en' ? (
               <div className="space-y-4 animation-fadeIn">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Friendly Display Name (English)</label>
@@ -338,7 +341,6 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
                 </div>
               </div>
             ) : (
-              /* AMHARIC INPUT TEMPLATE */
               <div className="space-y-4 animation-fadeIn">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">የበሽታው አማርኛ መጠሪያ (Friendly Display Name)</label>

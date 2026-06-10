@@ -7,6 +7,7 @@ const Crop = require('../models/Crop');
 
 const ML_SERVICE_URL = 'http://localhost:5001/predict';
 
+// Maintain table relationships cleanly
 Scan.belongsTo(Disease, { foreignKey: 'ai_predicted_disease_id' });
 Scan.belongsTo(Crop, { foreignKey: 'crop_id' });
 
@@ -36,6 +37,7 @@ exports.processPlantScan = async (req, res) => {
     }
 
     const { latitude, longitude } = req.body;
+    const lang = req.query.lang === 'am' ? 'am' : 'en'; 
 
     const fileBuffer = fs.readFileSync(req.file.path);
     const formData = new FormData();
@@ -54,53 +56,91 @@ exports.processPlantScan = async (req, res) => {
       return res.status(500).json({ success: false, message: mlOutput.error });
     }
 
-    const diseaseMapping = { 'Teff Rust': 'Teff Rust (Uromyces eragrostidis)' };
-    const targetName = diseaseMapping[mlOutput.result] || mlOutput.result;
+    // 1. NON-PLANT IMAGE OR INVALID MODEL OUTPUT PROTECTION
+    const rawResult = mlOutput.result ? mlOutput.result.trim() : '';
+    
+    // If Python specifically says it's not a leaf/plant, or if the output is completely empty
+    if (rawResult === 'Non-Plant' || rawResult === 'Unknown' || !rawResult) {
+      return res.status(200).json({
+        id: 0,
+        nameEn: "Invalid Image Detected",
+        nameAm: "ያልታወቀ ምስል ተገኝቷል",
+        raw_ml_key: "Non-Plant",
+        confidence: 0.0,
+        treatmentOrganic: lang === 'am' ? "እባክዎን ግልጽ የሆነ የሰብል ወይም የተክል ቅጠል ምስል ያንሱ።" : "Please take a clear picture of a valid crop leaf.",
+        treatmentChemical: lang === 'am' ? "ምንም ዓይነት የኬሚካል ሕክምና አያስፈልግም።" : "No chemical treatment applicable.",
+        prevention: lang === 'am' ? "ምስሉን በተሻለ ብርሃን በድጋሚ ይሞክሩ።" : "Try capturing the image again with better lighting and focus."
+      });
+    }
 
-    const diseaseData = await Disease.findOne({ 
+    // Direct mapping configuration for strict model evaluation matches
+    const diseaseMapping = { 'Teff Rust': 'Teff-Rust' };
+    const targetName = diseaseMapping[rawResult] || rawResult;
+
+    // 2. Dynamic "Find or Create" Mechanism
+    const [diseaseData, created] = await Disease.findOrCreate({
       where: { disease_name: targetName },
-      include: [{ model: Crop, attributes: ['id', 'crop_name'] }]
+      defaults: {
+        crop_id: 1, 
+        status: 'Inactive', 
+        display_name_en: `${targetName.replace(/-/g, ' ')} (Pending Review)`,
+        display_name_am: `${targetName} (ያልተመረመረ በሽታ)`,
+        description_en: 'Automated telemetry profile created. Structural parameters pending web update.',
+        description_am: 'በስርዓቱ በራስ-ሰር የተመዘገበ ጊዜያዊ መገለጫ። በአስተዳዳሪው መረጋገጥ አለበት።',
+        symptoms_en: '', symptoms_am: '',
+        causes_en: '', causes_am: '',
+        treatment_organic_en: 'Keep leaves dry, isolate the plant, and maintain clean cultivation tools.',
+        treatment_organic_am: 'እባክዎን ቅጠሎችን ያድርቁ፣ ተክሉን ይለዩ እና ንጹህ የግብርና መሳሪያዎችን ይጠቀሙ።',
+        treatment_chemical_en: 'No chemical treatment profile verified yet. Consult local extension staff.',
+        treatment_chemical_am: 'ምንም የኬሚካል ሕክምና መገለጫ አልተረጋገጠም። የግብርና ባለሙያ ያማክሩ።',
+        prevention_tips_en: 'Maintain proper spacing for air ventilation.',
+        prevention_tips_am: 'ለአየር ዝውውር በቂ የተክሎች ርቀት ይጠብቁ።'
+      }
     });
 
-    const userId = req.user ? req.user.id : null;
-    const resolvedCropId = diseaseData ? diseaseData.crop_id : null;
+    if (created) {
+      console.log(`✨ Ingestion Engine: Created new placeholder entry for raw ML label: "${targetName}"`);
+    }
 
-    // Save scan data to the logs database regardless of whether details exist yet
+    const userId = req.user ? req.user.id : null;
+
+    // 3. Commit log metrics directly into database
     await Scan.create({
       user_id: userId,
-      crop_id: resolvedCropId,
+      crop_id: diseaseData.crop_id,
       image_url: req.file.path,
-      ai_predicted_disease_id: diseaseData ? diseaseData.id : null,
-      confidence_level: mlOutput.confidence,
-      raw_ai_result: mlOutput.result,
+      ai_predicted_disease_id: diseaseData.id,
+      confidence_level: mlOutput.confidence || 1.0,
+      raw_ai_result: targetName,
       latitude: latitude || null,
       longitude: longitude || null
     });
 
-    // Case 1: Disease exists in the database
-    if (diseaseData) {
-      return res.status(200).json({
-        id: diseaseData.id,
-        nameEn: diseaseData.disease_name,
-        nameAm: diseaseData.disease_name_am || diseaseData.disease_name,
-        confidence: mlOutput.confidence,
-        treatmentOrganic: diseaseData.treatment_organic || 'No specific organic treatment registered.',
-        treatmentChemical: diseaseData.treatment_chemical || 'No specific chemical treatment registered.',
-        prevention: diseaseData.prevention_steps || 'No custom prevention steps found.'
-      });
+    // 4. Clean up display names dynamically by stripping out placeholder phrases
+    let cleanNameEn = (diseaseData.display_name_en || diseaseData.disease_name)
+      .replace(' (Pending Review)', '')
+      .replace(/-/g, ' ')
+      .trim();
+
+    let cleanNameAm = (diseaseData.display_name_am || diseaseData.disease_name)
+      .replace(' (ያልተመረመረ በሽታ)', '')
+      .trim();
+
+    // Fallback localization phrase if Amharic entry isn't customized by an admin yet
+    if (cleanNameAm === diseaseData.disease_name) {
+      cleanNameAm = `ያልተመረመረ በሽታ (${cleanNameEn})`;
     }
 
-    // Case 2: GLOBAL FALLBACK - Matches any disease missing from your database rows
-    console.log(`⚠️ Database row missing for "${targetName}". Triggering safe network response.`);
-    
+    // 5. Return formatted data structural mapping built to match Flutter model properties 
     return res.status(200).json({
-      id: 0,
-      nameEn: targetName,
-      nameAm: `${targetName} (ያልተመዘገበ)`, 
-      confidence: mlOutput.confidence,
-      treatmentOrganic: 'Keep leaves dry, separate the infected plant from others, and ensure clean cultivation tools.',
-      treatmentChemical: 'No chemical treatment profile exists in system records. Consult local extension staff.',
-      prevention: 'Maintain proper plant spacing for healthy ventilation, and clear weed hosts around production plots.'
+      id: diseaseData.id,
+      nameEn: cleanNameEn,
+      nameAm: cleanNameAm,
+      raw_ml_key: diseaseData.disease_name,
+      confidence: mlOutput.confidence || 1.0, 
+      treatmentOrganic: lang === 'am' ? diseaseData.treatment_organic_am : diseaseData.treatment_organic_en,
+      treatmentChemical: lang === 'am' ? diseaseData.treatment_chemical_am : diseaseData.treatment_chemical_en,
+      prevention: lang === 'am' ? diseaseData.prevention_tips_am : diseaseData.prevention_tips_en
     });
 
   } catch (err) {
@@ -121,7 +161,13 @@ exports.getUserHistory = async (req, res) => {
       include: [
         { 
           model: Disease, 
-          attributes: ['disease_name', 'disease_name_am', 'treatment_organic', 'treatment_chemical', 'prevention_steps'] 
+          attributes: [
+            'disease_name', 
+            'display_name_en', 'display_name_am',
+            'treatment_organic_en', 'treatment_organic_am', 
+            'treatment_chemical_en', 'treatment_chemical_am', 
+            'prevention_tips_en', 'prevention_tips_am'
+          ] 
         },
         { 
           model: Crop, 

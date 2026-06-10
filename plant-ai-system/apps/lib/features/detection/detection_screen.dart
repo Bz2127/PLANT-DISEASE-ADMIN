@@ -44,7 +44,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
         } else {
           setState(() => _pickedFile = pickedFile);
         }
-        await _proceedToAnalysis();
+        await _proceedToAnalysis(pickedFile);
       } else {
         setState(() => _isProcessing = false);
       }
@@ -54,15 +54,16 @@ class _DetectionScreenState extends State<DetectionScreen> {
     }
   }
 
-  Future<void> _proceedToAnalysis() async {
-    if (_pickedFile == null) return;
-
-    setState(() => _isProcessing = true);
+  Future<void> _proceedToAnalysis(XFile fileToAnalyze) async {
+    if (fileToAnalyze.path.isEmpty) return;
 
     try {
       Position? position;
       try {
-        LocationPermission permission = await Geolocator.requestPermission();
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
         if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
           position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
         }
@@ -71,13 +72,13 @@ class _DetectionScreenState extends State<DetectionScreen> {
       }
 
       final Directory appDir = await getApplicationDocumentsDirectory();
-      final String fileName = _pickedFile!.path.split('/').last;
-      final File permanentFile = await File(_pickedFile!.path).copy('${appDir.path}/$fileName');
+      final String fileName = fileToAnalyze.path.split('/').last;
+      final File permanentFile = await File(fileToAnalyze.path).copy('${appDir.path}/$fileName');
 
       FormData formData = FormData.fromMap({
         'image': await MultipartFile.fromFile(permanentFile.path, filename: fileName),
-        'latitude': position?.latitude.toString(),
-        'longitude': position?.longitude.toString(),
+        'latitude': position?.latitude?.toString(),
+        'longitude': position?.longitude?.toString(),
       });
 
       final response = await DioClient.instance.post(
@@ -85,8 +86,19 @@ class _DetectionScreenState extends State<DetectionScreen> {
         data: formData,
       );
 
-      if (response.statusCode == 200 && mounted) {
-        context.push('/result', extra: permanentFile.path);
+      if (response.statusCode == 200 && response.data != null && mounted) {
+        final targetPath = permanentFile.path;
+        
+        setState(() {
+          _pickedFile = null;
+          _webImageBytes = null;
+        });
+
+        // Pass both parameters using a Map extra argument payload
+        context.push('/result', extra: {
+          'imagePath': targetPath,
+          'analysisData': response.data,
+        });
       }
     } catch (e) {
       debugPrint("Analysis Error: $e");
@@ -96,7 +108,9 @@ class _DetectionScreenState extends State<DetectionScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isProcessing = false);
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     }
   }
 

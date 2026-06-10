@@ -37,13 +37,31 @@ class AppRouter {
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
       GoRoute(path: '/detection', builder: (context, state) => const DetectionScreen()),
+      
+      //  CORRECTED ROUTE
       GoRoute(
         path: '/result',
         builder: (context, state) {
-          final imagePath = state.extra is String ? state.extra as String : '';
-          return ResultScreen(imagePath: imagePath);
+          // Check if the parameter package is a Map passed from DetectionScreen
+          if (state.extra is Map<String, dynamic>) {
+            final params = state.extra as Map<String, dynamic>;
+            final imagePath = params['imagePath'] as String? ?? '';
+            final analysisData = params['analysisData'] as Map<String, dynamic>? ?? {};
+
+            return ResultScreen(
+              imagePath: imagePath,
+              analysisData: analysisData,
+            );
+          }
+
+          // Fallback safe defaults if empty state configurations are called
+          return const ResultScreen(
+            imagePath: '',
+            analysisData: {},
+          );
         },
       ),
+      
       GoRoute(path: '/scan', builder: (context, state) => const DetectionScreen()),
       GoRoute(path: '/history', builder: (context, state) => const HistoryScreen()),
       GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),

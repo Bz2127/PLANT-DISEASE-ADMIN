@@ -1,10 +1,10 @@
+// server/routes/diseaseRoutes.js
 const express = require('express');
 const router = express.Router();
 const { addDisease, getDiseases, getAdvisoryByScanId } = require('../controllers/diseaseController');
 const authMiddleware = require('../middleware/authMiddleware');
 const Crop = require('../models/Crop');
-// If you have a DiseaseAdvisory model, import it here to serve fallback data directly
-// const DiseaseAdvisory = require('../models/DiseaseAdvisory'); 
+const Disease = require('../models/Disease'); // Import Disease model directly for quick operations
 
 // 1. PUBLIC ROUTES: Accessible by the Farmer Mobile App
 
@@ -19,7 +19,6 @@ router.get('/crops-list', async (req, res) => {
 });
 
 // New endpoint for Smart Advisory - Public access for farmers
-// ✅ Intercepts ID '0' right here so it doesn't break the mobile screen or crash the controller query
 router.get('/advisory/:scanId', (req, res, next) => {
   if (req.params.scanId === '0') {
     return res.status(200).json({
@@ -33,7 +32,6 @@ router.get('/advisory/:scanId', (req, res, next) => {
       }
     });
   }
-  // If it's a valid ID, pass control right along to your existing controller logic
   return getAdvisoryByScanId(req, res, next);
 });
 
@@ -44,5 +42,50 @@ router.use(authMiddleware);
 router.route('/')
   .post(addDisease)
   .get(getDiseases);
+
+// =========================================================================
+// 4. NEW ADMINISTRATIVE VERIFICATION & REPAIR LAYER
+// These stop your unique constraint database crashes!
+// =========================================================================
+
+// Verification path to see if the ML placeholder already exists in MySQL
+router.get('/verify', async (req, res) => {
+  try {
+    const { name } = req.query;
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'Missing target verification name parameter.' });
+    }
+    
+    const disease = await Disease.findOne({ where: { disease_name: name.trim() } });
+    if (disease) {
+      // It exists! Send back its ID so the React form knows to switch from POST to PUT
+      return res.status(200).json({ exists: true, id: disease.id });
+    }
+    
+    // It doesn't exist yet, safe to do a regular POST creation
+    return res.status(200).json({ exists: false });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PUT path to update/overwrite the placeholder rows directly via their numeric ID
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const [updatedRowsCount] = await Disease.update(req.body, { 
+      where: { id: id } 
+    });
+
+    if (updatedRowsCount === 0) {
+      return res.status(404).json({ success: false, message: 'No placeholder record found matching that ID.' });
+    }
+
+    res.status(200).json({ success: true, message: 'Data matrix record patched successfully!' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 module.exports = router;

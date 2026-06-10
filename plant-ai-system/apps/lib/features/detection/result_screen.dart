@@ -1,15 +1,18 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
-import 'package:farmer_mobile_app/core/api/dio_client.dart';
 import 'package:farmer_mobile_app/shared/models/disease_model.dart';
 import 'package:farmer_mobile_app/features/advisory/advisory_screen.dart';
 import 'package:farmer_mobile_app/features/voice/voice_assistant_service.dart';
 
 class ResultScreen extends StatefulWidget {
   final String imagePath;
+  final Map<String, dynamic> analysisData; // Added parameter to handle the pre-loaded backend data
 
-  const ResultScreen({super.key, required this.imagePath});
+  const ResultScreen({
+    super.key, 
+    required this.imagePath, 
+    required this.analysisData, // Initialized in constructor
+  });
 
   @override
   State<ResultScreen> createState() => _ResultScreenState();
@@ -25,43 +28,40 @@ class _ResultScreenState extends State<ResultScreen> {
   @override
   void initState() {
     super.initState();
-    _initVoiceAndAnalyze();
+    _initVoiceAndParseData();
   }
 
-  Future<void> _initVoiceAndAnalyze() async {
-    await _voiceService.initVoice(context);
-    await _uploadAndAnalyzeImage();
-  }
-
-  Future<void> _uploadAndAnalyzeImage() async {
+  Future<void> _initVoiceAndParseData() async {
     try {
-      final File imageFile = File(widget.imagePath);
+      // 1. Initialize Text-to-Speech Engine
+      await _voiceService.initVoice(context);
       
-      if (!imageFile.existsSync()) {
+      // 2. Validate Image File Presence Locally
+      final File imageFile = File(widget.imagePath);
+      if (widget.imagePath.isNotEmpty && !imageFile.existsSync()) {
         throw Exception("Image file not found at: ${widget.imagePath}");
       }
 
-      final formData = FormData.fromMap({
-        'image': await MultipartFile.fromFile(widget.imagePath, filename: 'upload.jpg'),
-      });
-
-      final response = await DioClient.instance.post(
-        '/scans/predict-disease',
-        data: formData,
-      );
-
-      if (response.statusCode == 200 && response.data != null) {
+      // 3. Process the data passed from DetectionScreen instantly (No second API call!)
+      if (widget.analysisData.isNotEmpty) {
         setState(() {
-          _analysisResult = DiseaseResult.fromJson(response.data);
+          _analysisResult = DiseaseResult.fromJson(widget.analysisData);
           _isLoading = false;
         });
         
-        final currentLanguage = Localizations.localeOf(context).languageCode;
-        if (currentLanguage == 'am') {
-          _voiceService.speak("የምርመራ ውጤት ዝግጁ ነው። ማብራሪያውን ለመስማት የድምፅ ምልክቱን ይጫኑ።");
-        } else {
-          _voiceService.speak("Analysis complete. Tap the speaker icon to listen to treatment instructions.");
+        // 4. Trigger voice notification updates once layout data fields mount
+        if (mounted) {
+          final currentLanguage = Localizations.localeOf(context).languageCode;
+          if (currentLanguage == 'am') {
+            _voiceService.speak("የምርመራ ውጤት ዝግጁ ነው። ማብራሪያውን ለመስማት የድምፅ ምልክቱን ይጫኑ።");
+          } else {
+            _voiceService.speak("Analysis complete. Tap the speaker icon to listen to treatment instructions.");
+          }
         }
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
       setState(() {
@@ -123,7 +123,7 @@ class _ResultScreenState extends State<ResultScreen> {
             );
           }
 
-          if (_errorMessage != null) {
+          if (_errorMessage != null || _analysisResult == null) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -133,7 +133,9 @@ class _ResultScreenState extends State<ResultScreen> {
                     const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
                     const SizedBox(height: 12),
                     Text(
-                      isAmharic ? "ምርመራው አልተሳካም\n$_errorMessage" : "Analysis Failed\n$_errorMessage",
+                      isAmharic 
+                          ? "ምርመራው አልተሳካም\n${_errorMessage ?? 'ምንም መረጃ አልተገኘም'}" 
+                          : "Analysis Failed\n${_errorMessage ?? 'No data provided.'}",
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
                     ),
@@ -154,11 +156,12 @@ class _ResultScreenState extends State<ResultScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  height: isWideScreen ? 350 : 250,
-                  width: double.infinity,
-                  child: Image.file(File(widget.imagePath), fit: BoxFit.cover),
-                ),
+                if (widget.imagePath.isNotEmpty)
+                  SizedBox(
+                    height: isWideScreen ? 350 : 250,
+                    width: double.infinity,
+                    child: Image.file(File(widget.imagePath), fit: BoxFit.cover),
+                  ),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: dynamicHorizontalPadding, vertical: 20),
                   child: Column(
