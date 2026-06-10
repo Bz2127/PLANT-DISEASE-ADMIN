@@ -17,7 +17,7 @@ const NotificationHub = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post('http://localhost:5000/api/admin/notifications', formData, {
+      const res = await axios.post('process.env.REACT_APP_API_URL/api/admin/notifications', formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {

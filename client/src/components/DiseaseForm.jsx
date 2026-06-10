@@ -40,7 +40,7 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
     const fetchDropdownCrops = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:5000/api/admin/crops', {
+        const res = await axios.get('https://plant-disease-backend-yr3j.onrender.com/api/admin/crops' ,{
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -119,7 +119,7 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
       };
 
       const checkExist = await axios.get(
-        `http://localhost:5000/api/admin/diseases/verify?name=${encodeURIComponent(formData.disease_name)}`, 
+        `process.env.REACT_APP_API_URL/api/admin/diseases/verify?name=${encodeURIComponent(formData.disease_name)}`, 
         config
       ).catch(() => null);
 
@@ -127,9 +127,9 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
 
       if (checkExist && checkExist.data.exists) {
         const existingId = checkExist.data.id;
-        res = await axios.put(`http://localhost:5000/api/admin/diseases/${existingId}`, submissionData, config);
+        res = await axios.put(`process.env.REACT_APP_API_URL/api/admin/diseases/${existingId}`, submissionData, config);
       } else {
-        res = await axios.post('http://localhost:5000/api/admin/diseases', submissionData, config);
+        res = await axios.post('process.env.REACT_APP_API_URL/api/admin/diseases', submissionData, config);
       }
       
       if (res.data.success) {

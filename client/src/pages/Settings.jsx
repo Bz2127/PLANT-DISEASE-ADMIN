@@ -28,7 +28,7 @@ const Settings = () => {
     const fetchAdminProfile = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:5000/api/admin/profile', {
+        const res = await axios.get('process.env.REACT_APP_API_URL/api/admin/profile', {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.data.success) {
@@ -51,7 +51,7 @@ const Settings = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put('http://localhost:5000/api/admin/profile/update', 
+      const res = await axios.put('process.env.REACT_APP_API_URL/api/admin/profile/update', 
         { email: adminInfo.email },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -79,7 +79,7 @@ const Settings = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put('http://localhost:5000/api/admin/profile/password', 
+      const res = await axios.put('process.env.REACT_APP_API_URL/api/admin/profile/password', 
         {
           currentPassword: passwordData.currentPassword,
           newPassword: passwordData.newPassword

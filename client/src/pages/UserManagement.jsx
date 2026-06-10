@@ -11,7 +11,7 @@ const UserManagement = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5000/api/admin/users', {
+      const res = await axios.get('process.env.REACT_APP_API_URL/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -32,7 +32,7 @@ const UserManagement = () => {
       const token = localStorage.getItem('token');
       const newStatus = currentStatus === 'Active' ? 'Blocked' : 'Active';
       
-      const res = await axios.put(`http://localhost:5000/api/admin/users/${userId}/status`, 
+      const res = await axios.put(`process.env.REACT_APP_API_URL/api/admin/users/${userId}/status`, 
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -104,7 +104,7 @@ const UserManagement = () => {
                       <div className="flex items-center gap-3">
                         {user.profile_image ? (
                           <img 
-                            src={`http://localhost:5000${user.profile_image}`} 
+                            src={`process.env.REACT_APP_API_URL${user.profile_image}`} 
                             alt={user.full_name} 
                             className="w-10 h-10 rounded-full object-cover border border-slate-200"
                           />
