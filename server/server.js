@@ -25,7 +25,11 @@ const app = express();
 
 // Cross-Origin Settings for Web Panel access
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://192.168.43.252:5000'],
+  origin: [
+    'http://localhost:3000', 
+    'http://192.168.43.252:5000', 
+    'https://plant-disease-webfront.onrender.com' // Add your deployed frontend here
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true
