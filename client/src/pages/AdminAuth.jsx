@@ -13,6 +13,7 @@ const AdminAuth = ({ onAuthSuccess }) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    console.log("DEBUG: Sending to", process.env.REACT_APP_API_URL, { email, password });
     
     try {
   const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/admin/login`, {
