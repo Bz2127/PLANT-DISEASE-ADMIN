@@ -15,7 +15,7 @@ const ScanLog = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const res = await axios.get('process.env.REACT_APP_API_URL/api/admin/scans', {
+      const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/admin/scans`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

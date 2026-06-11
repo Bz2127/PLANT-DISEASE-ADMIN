@@ -19,7 +19,7 @@ const AdminDashboard = () => {
         const token = localStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
 
-        const statsRes = await axios.get('process.env.REACT_APP_API_URL/api/admin/dashboard-stats', { headers });
+        const statsRes = await axios.get(`${process.env.REACT_APP_API_URL}/api/admin/dashboard-stats`, { headers });
         if (statsRes.data.success && statsRes.data.stats) {
           setLiveStats({
             totalScans: statsRes.data.stats.totalScans || statsRes.data.totalScans,
@@ -31,7 +31,7 @@ const AdminDashboard = () => {
           setLiveStats(statsRes.data);
         }
 
-        const scansRes = await axios.get('process.env.REACT_APP_API_URL/api/admin/scans', { headers });
+        const scansRes = await axios.get(`${process.env.REACT_APP_API_URL}/api/admin/scans`, { headers });
         if (scansRes.data.success) {
           const logs = scansRes.data.scans || scansRes.data.data || [];
           setRecentScans(logs.slice(0, 3));

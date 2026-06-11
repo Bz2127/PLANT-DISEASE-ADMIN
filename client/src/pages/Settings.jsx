@@ -28,9 +28,9 @@ const Settings = () => {
     const fetchAdminProfile = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('process.env.REACT_APP_API_URL/api/admin/profile', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+       const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/admin/profile`, {
+  headers: { Authorization: `Bearer ${token}` }
+});
         if (res.data.success) {
           setAdminInfo({
             email: res.data.data.email,
@@ -51,10 +51,10 @@ const Settings = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put('process.env.REACT_APP_API_URL/api/admin/profile/update', 
-        { email: adminInfo.email },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+     const res = await axios.put(`${process.env.REACT_APP_API_URL}/api/admin/profile/update`, 
+  { email: adminInfo.email },
+  { headers: { Authorization: `Bearer ${token}` } }
+);
       if (res.data.success) {
         setStatus({ text: res.data.message || 'Profile email updated successfully.', isError: false, context: 'profile' });
       }
@@ -79,13 +79,13 @@ const Settings = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.put('process.env.REACT_APP_API_URL/api/admin/profile/password', 
-        {
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+     const res = await axios.put(`${process.env.REACT_APP_API_URL}/api/admin/profile/password`, 
+  {
+    currentPassword: passwordData.currentPassword,
+    newPassword: passwordData.newPassword
+  },
+  { headers: { Authorization: `Bearer ${token}` } }
+);
       
       if (res.data.success) {
         setStatus({ text: res.data.message || 'Authentication keys updated successfully.', isError: false, context: 'security' });
