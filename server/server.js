@@ -103,14 +103,12 @@ app.post('/api/scans/recommend-crop', (req, res) => {
   }
   return res.json({ success: true });
 });
-
-app.post('/api/scans/predict-disease', uploadScan.single('image'), userAuthMiddleware, (req, res) => {
+app.post('/api/scans/predict-disease', userAuthMiddleware, uploadScan.single('image'), (req, res) => {
   if (scanController && typeof scanController.processPlantScan === 'function') {
     return scanController.processPlantScan(req, res);
   }
-  return res.json({ success: false });
+  return res.status(500).json({ success: false, message: "Controller error" });
 });
-
 app.get('/api/scans', userAuthMiddleware, (req, res) => {
   res.redirect(307, '/api/users/scans');
 });
