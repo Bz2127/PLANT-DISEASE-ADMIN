@@ -48,7 +48,7 @@ formData.append('image', req.file.buffer, {
 
     const mlResponse = await axios.post(ML_SERVICE_URL, formData, {
       headers: { ...formData.getHeaders() },
-      timeout: 15000
+      timeout: 60000
     });
     
     const mlOutput = mlResponse.data;
@@ -144,10 +144,18 @@ formData.append('image', req.file.buffer, {
     });
 
   } catch (err) {
-    console.error("Scan Error Details:", err.response?.data || err.message);
-    res.status(500).json({ success: false, message: 'Server Data Processing Error' });
-  }
-};
+  console.error("========== SCAN ERROR ==========");
+  console.error("MESSAGE:", err.message);
+  console.error("STATUS:", err.response?.status);
+  console.error("DATA:", err.response?.data);
+  console.error("STACK:", err.stack);
+
+  return res.status(500).json({
+    success: false,
+    message: err.message,
+    details: err.response?.data || null
+  });
+}
 
 exports.getUserHistory = async (req, res) => {
   try {
