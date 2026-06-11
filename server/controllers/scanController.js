@@ -5,7 +5,8 @@ const Scan = require('../models/Scan');
 const Disease = require('../models/Disease');
 const Crop = require('../models/Crop');
 
-const ML_SERVICE_URL = 'http://localhost:5001/predict';
+// Use the actual public URL of your deployed ML model
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'https://plant-disease-model-8k82.onrender.com/predict';
 
 // Maintain table relationships cleanly
 Scan.belongsTo(Disease, { foreignKey: 'ai_predicted_disease_id' });

@@ -25,11 +25,7 @@ const app = express();
 
 // Cross-Origin Settings for Web Panel access
 app.use(cors({
-  origin: [
-    'http://localhost:3000', 
-    'http://192.168.43.252:5000', 
-    'https://plant-disease-webfront.onrender.com' // Add your deployed frontend here
-  ],
+  origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://plant-disease-webfront.onrender.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true
@@ -112,10 +108,9 @@ app.post('/api/users/profile-update', upload.single('image'), async (req, res) =
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    user.full_name = full_name || user.full_name;
-    user.location = location || user.location;
-    user.language_pref = language_pref || user.language_pref;
-
+    if (full_name !== undefined) user.full_name = full_name;
+if (location !== undefined) user.location = location;
+if (language_pref !== undefined) user.language_pref = language_pref;
     if (req.file) {
       user.profile_image = `/uploads/${req.file.filename}`;
     }
@@ -137,7 +132,7 @@ app.post('/api/scans/recommend-crop', (req, res) => {
   return res.json({ success: true });
 });
 
-app.post('/api/scans/predict-disease', userAuthMiddleware, upload.single('image'), (req, res) => {
+app.post('/api/scans/predict-disease', upload.single('image'), userAuthMiddleware, (req, res) => {
   if (scanController && typeof scanController.processPlantScan === 'function') {
     return scanController.processPlantScan(req, res);
   }

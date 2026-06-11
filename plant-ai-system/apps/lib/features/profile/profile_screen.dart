@@ -86,81 +86,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _saveProfileData() async {
-    if (_nameController.text.trim().isEmpty || _phoneController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_isAmharic ? "እባክዎን ሁሉንም መስኮች ይሙሉ" : "Please fill all required fields")),
-      );
-      return;
+ Future<void> _saveProfileData() async {
+  if (_nameController.text.trim().isEmpty || _phoneController.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_isAmharic ? "እባክዎን ሁሉንም መስኮች ይሙሉ" : "Please fill all required fields")),
+    );
+    return;
+  }
+
+  setState(() => _isSaving = true);
+  final prefs = await SharedPreferences.getInstance();
+
+  try {
+    final url = Uri.parse('https://plant-disease-backend-yr3j.onrender.com/api/users/profile-update');
+    var request = http.MultipartRequest('POST', url);
+
+    // These keys now match your server.js (req.body) expectations
+    request.fields['phone_number'] = _phoneController.text.trim();
+    request.fields['full_name'] = _nameController.text.trim();
+    request.fields['location'] = _selectedLocation;       // Changed from regional_location
+    request.fields['language_pref'] = _selectedLanguage; // Changed from app_localization
+
+    if (_imageFile != null) {
+      request.files.add(await http.MultipartFile.fromPath(
+        'image',
+        _imageFile!.path,
+        contentType: MediaType('image', 'jpeg'),
+      ));
     }
 
-    setState(() => _isSaving = true);
-    final prefs = await SharedPreferences.getInstance();
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
 
-    try {
-      final url = Uri.parse('http://192.168.43.252:5000/api/users/profile-update');
-      var request = http.MultipartRequest('POST', url);
+    if (response.statusCode == 200) {
+      final resData = json.decode(response.body);
+      String? newImgUrl = resData['user']['profile_image'];
 
-      request.fields['phone_number'] = _phoneController.text.trim();
-      request.fields['full_name'] = _nameController.text.trim();
-      
-      //  Updated payload field names to completely match backend model mappings
-      request.fields['regional_location'] = _selectedLocation;
-      request.fields['app_localization'] = _selectedLanguage;
-
-      if (_imageFile != null) {
-        request.files.add(await http.MultipartFile.fromPath(
-          'image',
-          _imageFile!.path,
-          contentType: MediaType('image', 'jpeg'),
-        ));
+      await prefs.setString('user_name', _nameController.text.trim());
+      await prefs.setString('user_phone', _phoneController.text.trim());
+      await prefs.setString('user_location', _selectedLocation);
+      await prefs.setString('user_lang', _selectedLanguage);
+      if (newImgUrl != null) {
+        await prefs.setString('user_profile_image', newImgUrl);
       }
 
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
+      setState(() {
+        _isAmharic = (_selectedLanguage == 'Amharic');
+        if (newImgUrl != null) _profileImageUrl = newImgUrl;
+      });
 
-      if (response.statusCode == 200) {
-        final resData = json.decode(response.body);
-        String? newImgUrl = resData['user']['profile_image'];
-
-        await prefs.setString('user_name', _nameController.text.trim());
-        await prefs.setString('user_phone', _phoneController.text.trim());
-        await prefs.setString('user_location', _selectedLocation);
-        await prefs.setString('user_lang', _selectedLanguage);
-        if (newImgUrl != null) {
-          await prefs.setString('user_profile_image', newImgUrl);
-        }
-
-        setState(() {
-          _isAmharic = (_selectedLanguage == 'Amharic');
-          if (newImgUrl != null) _profileImageUrl = newImgUrl;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: const Color(0xFF4CAF50),
-              content: Text(_isAmharic ? "መገለጫዎ በተሳካ ሁኔታ ተቀይሯል" : "Profile updated everywhere successfully!"),
-            ),
-          );
-        }
-      } else {
-        throw Exception("Server Error");
-      }
-    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: const Color(0xFFB38B4D),
-            content: Text(_isAmharic ? "የመረቡ ግንኙነት አልተሳካም - ለውጦች በአካባቢው ተቀምጠዋል" : "Network error. Saved updates locally."),
+            backgroundColor: const Color(0xFF4CAF50),
+            content: Text(_isAmharic ? "መገለጫዎ በተሳካ ሁኔታ ተቀይሯል" : "Profile updated successfully!"),
           ),
         );
       }
-    } finally {
-      setState(() => _isSaving = false);
+    } else {
+      throw Exception("Server Error: ${response.statusCode}");
     }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFB38B4D),
+          content: Text(_isAmharic ? "የመረቡ ግንኙነት አልተሳካም" : "Network error. Please try again."),
+        ),
+      );
+    }
+  } finally {
+    setState(() => _isSaving = false);
   }
-
+}
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -209,7 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 backgroundColor: const Color(0xFF1B3022),
                 backgroundImage: _imageFile != null 
                     ? FileImage(_imageFile!) 
-                    : (_profileImageUrl != null ? NetworkImage('http://192.168.43.252:5000$_profileImageUrl') : null) as ImageProvider?,
+                    : (_profileImageUrl != null ? NetworkImage('https://plant-disease-backend-yr3j.onrender.com$_profileImageUrl') : null) as ImageProvider?,
                 child: (_imageFile == null && _profileImageUrl == null)
                     ? const Icon(Icons.camera_alt, size: 40, color: Color(0xFF4CAF50))
                     : null,
