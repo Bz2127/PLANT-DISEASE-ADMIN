@@ -156,6 +156,7 @@ formData.append('image', req.file.buffer, {
     details: err.response?.data || null
   });
 }
+};
 
 exports.getUserHistory = async (req, res) => {
   try {
