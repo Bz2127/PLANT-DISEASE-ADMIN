@@ -35,23 +35,31 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Setup Image Upload Storage Systems
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  }
+// 1. Storage for Profiles (Saves to Disk)
+const profileStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'uploads/'),
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 });
-const upload = multer({ storage: storage });
+const uploadProfile = multer({ storage: profileStorage });
+
+// 2. Storage for Scans (Keeps in Memory for ML processing)
+const uploadScan = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } 
+});
 
 // Serve static profile image assets
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// 3. APPLY THEM INDIVIDUALLY TO ROUTES:
+app.post('/api/users/profile-update', uploadProfile.single('image'), async (req, res) => {
+    
+});
+
+// Use uploadScan for the scan route
+app.post('/api/scans/predict-disease', uploadScan.single('image'), userAuthMiddleware, (req, res) => {
+    // ... existing logic ...
+});
 
 // ----- MOUNT SYSTEM ROUTE HANDLERS -----
 

@@ -40,12 +40,11 @@ exports.processPlantScan = async (req, res) => {
     const { latitude, longitude } = req.body;
     const lang = req.query.lang === 'am' ? 'am' : 'en'; 
 
-    const fileBuffer = fs.readFileSync(req.file.path);
-    const formData = new FormData();
-    formData.append('image', fileBuffer, {
-      filename: req.file.originalname,
-      contentType: req.file.mimetype
-    });
+   const formData = new FormData();
+formData.append('image', req.file.buffer, {
+  filename: req.file.originalname,
+  contentType: req.file.mimetype
+});
 
     const mlResponse = await axios.post(ML_SERVICE_URL, formData, {
       headers: { ...formData.getHeaders() },
@@ -109,7 +108,7 @@ exports.processPlantScan = async (req, res) => {
     await Scan.create({
       user_id: userId,
       crop_id: diseaseData.crop_id,
-      image_url: req.file.path,
+      image_url: 'in-memory-process',
       ai_predicted_disease_id: diseaseData.id,
       confidence_level: mlOutput.confidence || 1.0,
       raw_ai_result: targetName,
