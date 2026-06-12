@@ -24,7 +24,7 @@ exports.getRecommendation = async (req, res) => {
       data: [Number(nitrogen), Number(phosphorus), Number(potassium), Number(ph), Number(rainfall), Number(temperature)]
     };
 
-    const response = await axios.post(ML_SERVICE_URL, payload);
+    const response = await axios.post(`${ML_SERVICE_URL}/predict`, payload);
     res.status(200).json({ success: true, recommended_crop: response.data.result });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Crop Model Service Unavailable' });
@@ -46,10 +46,10 @@ formData.append('image', req.file.buffer, {
   contentType: req.file.mimetype
 });
 
-    const mlResponse = await axios.post(ML_SERVICE_URL, formData, {
-      headers: { ...formData.getHeaders() },
-      timeout: 120000
-    });
+  const mlResponse = await axios.post(`${ML_SERVICE_URL}/predict`, formData, {
+  headers: { ...formData.getHeaders() },
+  timeout: 120000
+});
     
     const mlOutput = mlResponse.data;
     if (mlOutput.error) {
