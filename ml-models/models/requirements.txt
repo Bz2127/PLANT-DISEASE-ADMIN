@@ -3,5 +3,5 @@ joblib
 numpy
 pillow
 scikit-image
-scikit-learn
+scikit-learn==1.8.0
 gunicorn

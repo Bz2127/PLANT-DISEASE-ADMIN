@@ -3,6 +3,7 @@ import joblib
 import numpy as np
 from PIL import Image
 import io
+import os
 from skimage.feature import hog
 
 app = Flask(__name__)
