@@ -1,16 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken'); // Imported for real token generation
+const jwt = require('jsonwebtoken'); 
 const User = require('../models/User');
 const Scan = require('../models/Scan'); 
 const authMiddleware = require('../middleware/authMiddleware'); 
 const userAuthMiddleware = require('../middleware/userAuthMiddleware'); 
 
-// --- MOBILE AUTHENTICATION ENDPOINTS ---
-
 router.post('/register', async (req, res) => {
   try {
-    console.log("--- MOBILE REGISTER REQUEST ---", req.body);
     const { full_name, full_name_am, phone_number, location } = req.body;
 
     if (!phone_number) {
@@ -24,14 +21,12 @@ router.post('/register', async (req, res) => {
 
     user = await User.create({
       full_name: full_name || 'Farmer',
-      full_name_am: full_name_am || 'አራሽ',
       phone_number: phone_number,
       location: location,
-      app_localization: full_name_am ? 'Amharic' : 'English',
-      status: 'active'
+      language_pref: full_name_am ? 'Amharic' : 'English',
+      status: 'Active'
     });
 
-    // Real signed JSON Web Token creation
     const realToken = jwt.sign(
       { id: user.id },
       process.env.JWT_SECRET || 'fallback_secret_123',
@@ -45,7 +40,7 @@ router.post('/register', async (req, res) => {
         full_name: user.full_name,
         phone_number: user.phone_number,
         location: user.location,
-        language_pref: user.app_localization
+        language_pref: user.language_pref
       }
     });
   } catch (err) {
@@ -56,7 +51,6 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    console.log("--- MOBILE LOGIN REQUEST ---", req.body);
     const { phone_number } = req.body;
 
     if (!phone_number) {
@@ -68,7 +62,6 @@ router.post('/login', async (req, res) => {
       return res.status(404).json({ msg: 'User not found' });
     }
 
-    // Real signed JSON Web Token creation
     const realToken = jwt.sign(
       { id: user.id },
       process.env.JWT_SECRET || 'fallback_secret_123',
@@ -82,7 +75,7 @@ router.post('/login', async (req, res) => {
         full_name: user.full_name,
         phone_number: user.phone_number,
         location: user.location,
-        language_pref: user.app_localization
+        language_pref: user.language_pref
       }
     });
   } catch (err) {
@@ -90,8 +83,6 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ msg: 'Server error during login' });
   }
 });
-
-// --- MOBILE PROFILE UPDATE ENDPOINT ---
 
 router.put('/profile', userAuthMiddleware, async (req, res) => {
   try {
@@ -102,7 +93,7 @@ router.put('/profile', userAuthMiddleware, async (req, res) => {
     user.phone_number = req.body.phone_number || user.phone_number;
     
     user.location = req.body.location || user.location;
-    user.app_localization = req.body.app_localization || req.body.language_pref || user.app_localization;
+    user.language_pref = req.body.language_pref || user.language_pref;
 
     await user.save();
 
@@ -113,7 +104,7 @@ router.put('/profile', userAuthMiddleware, async (req, res) => {
         full_name: user.full_name,
         phone_number: user.phone_number,
         location: user.location,
-        language_pref: user.app_localization
+        language_pref: user.language_pref
       }
     });
   } catch (err) {
@@ -121,8 +112,6 @@ router.put('/profile', userAuthMiddleware, async (req, res) => {
     res.status(500).json({ msg: 'Server error updating profile' });
   }
 });
-
-// --- MOBILE SCAN HISTORY ROUTE ---
 
 router.get('/scans', userAuthMiddleware, async (req, res) => {
   try {
@@ -143,8 +132,6 @@ router.get('/scans', userAuthMiddleware, async (req, res) => {
     res.status(500).json({ msg: 'Server error fetching scan history' });
   }
 });
-
-// --- ADMIN ROUTES ---
 
 router.get('/', authMiddleware, async (req, res) => {
   try {
