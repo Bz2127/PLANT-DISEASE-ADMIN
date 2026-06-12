@@ -26,7 +26,7 @@ router.post('/register', async (req, res) => {
       full_name: full_name || 'Farmer',
       full_name_am: full_name_am || 'አራሽ',
       phone_number: phone_number,
-      regional_location: location || 'Oromia',
+      regional_location: location && location.trim() !== '' ? location : 'Unspecified',
       app_localization: full_name_am ? 'Amharic' : 'English',
       status: 'active'
     });

@@ -113,7 +113,14 @@ exports.getScanLogs = async (req, res) => {
 
 exports.getUsersList = async (req, res) => {
   try {
-    const users = await User.findAll({ order: [['created_at', 'DESC']] });
+    const users = await User.findAll({ 
+    
+      attributes: [
+        'id', 'full_name', 'phone_number', 'status', 'app_localization',
+        ['regional_location', 'location'] 
+      ],
+      order: [['created_at', 'DESC']] 
+    });
     res.status(200).json({ success: true, data: users, users: users });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed loading user index.", error: error.message });
@@ -139,7 +146,7 @@ exports.getAnalyticsData = async (req, res) => {
     const totalGlobalScans = await Scan.count();
     const regionalOutbreaks = await Scan.findAll({
       attributes: [
-        [Sequelize.col('User.location'), 'location'],
+        [Sequelize.col('User.regional_location'), 'location'],
         [Sequelize.fn('COUNT', Sequelize.col('Scan.id')), 'total_scans']
       ],
       include: [

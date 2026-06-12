@@ -197,6 +197,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   @override
+
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
