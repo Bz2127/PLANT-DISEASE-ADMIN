@@ -52,35 +52,36 @@ class VoiceAssistantService {
   }
 
   /// Plays string audio content through native speakers using active language configurations.
-  Future<void> speak(String text, {String? forceLanguageCode}) async {
-    if (text.isEmpty) return;
-    try {
-      // If a specific language context is forced (e.g., from an advisory API column stream)
-      if (forceLanguageCode != null) {
-        if (forceLanguageCode == 'am') {
-          await _flutterTts.setLanguage("am-ET");
-          await _flutterTts.setSpeechRate(0.40);
-        } else {
-          await _flutterTts.setLanguage("en-US");
-          await _flutterTts.setSpeechRate(0.50);
-        }
-      }
+ Future<void> speak(String text, {String? forceLanguageCode}) async {
+  if (text.isEmpty) return;
+  
+  try {
+    // 1. Determine which language to try first
+    String targetLang = forceLanguageCode ?? "en-US";
+    
+    // 2. Map 'am' to the code the TTS engine expects
+    String ttsLang = (targetLang == 'am') ? "am-ET" : "en-US";
 
-      // Web cross-compilation backup safety checklist rules
-      if (kIsWeb) {
-        final bool isAmharicSupported = await _flutterTts.isLanguageAvailable("am-ET");
-        if (!isAmharicSupported && forceLanguageCode == 'am') {
-          debugPrint("Web platform voice synthesis lacks am-ET engine profile pack. Falling back cleanly.");
-          await _flutterTts.setLanguage("en-US");
-        }
-      }
+    // 3. Safety Check: Does the phone support this language?
+    List<dynamic> languages = await _flutterTts.getLanguages;
+    bool isSupported = languages.contains(ttsLang);
 
-      await _flutterTts.speak(text);
-    } catch (e) {
-      debugPrint("Native synthesis or browser engine execution trace suppressed: $e");
+    if (isSupported) {
+      await _flutterTts.setLanguage(ttsLang);
+    } else {
+      // FALLBACK: If Amharic isn't supported, use English
+      debugPrint("Amharic voice pack missing, falling back to English.");
+      await _flutterTts.setLanguage("en-US");
     }
-  }
 
+    // 4. Set speed and speak
+    await _flutterTts.setSpeechRate(targetLang == 'am' ? 0.4 : 0.5);
+    await _flutterTts.speak(text);
+    
+  } catch (e) {
+    debugPrint("TTS Error: $e");
+  }
+}
   /// Begins real-time speech analysis using matching script properties
   void startListening({
     required BuildContext context, 
