@@ -16,7 +16,7 @@ const AddDisease = () => {
         headers: { Authorization: `Bearer ${token}` }
       };
 
-      const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/diseases`, config);
+      const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/admin/diseases`, config);
       if (res.data.success) {
         setDiseasesList(res.data.data);
       }
