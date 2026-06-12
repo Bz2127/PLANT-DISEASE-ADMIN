@@ -13,24 +13,23 @@ const formatLocalizedData = (diseaseInstance, lang = 'en') => {
   // Convert Sequelize instance to a clean JSON object
   const cleanData = diseaseInstance.toJSON ? diseaseInstance.toJSON() : { ...diseaseInstance };
 
-  return {
-    id: cleanData.id,
-    disease_name: cleanData.disease_name, // The raw ML string identifier (e.g. 'Anthracnose')
-    crop_id: cleanData.crop_id,
-    image_url: cleanData.image_url,
-    status: cleanData.status,
-    Crop: cleanData.Crop,
-    created_at: cleanData.created_at,
-    updated_at: cleanData.updated_at,
+return {
+    id: data.id,
+    disease_name: data.disease_name,
+    crop_id: data.crop_id,
+    image_url: data.image_url,
+    status: data.status,
+    Crop: data.Crop,
+    created_at: data.created_at,
+    updated_at: data.updated_at,
     
-    // Dynamically projecting localized keys into generic fields for easy UI binding
-    display_name: cleanData[`display_name${suffix}`] || cleanData['display_name_en'] || cleanData.disease_name,
-    description: cleanData[`description${suffix}`] || cleanData['description_en'] || '',
-    symptoms: cleanData[`symptoms${suffix}`] || cleanData['symptoms_en'] || '',
-    causes: cleanData[`causes${suffix}`] || cleanData['causes_am'] || '',
-    treatment_organic: cleanData[`treatment_organic${suffix}`] || cleanData['treatment_organic_en'] || '',
-    treatment_chemical: cleanData[`treatment_chemical${suffix}`] || cleanData['treatment_chemical_en'] || '',
-    prevention_tips: cleanData[`prevention_tips${suffix}`] || cleanData['prevention_tips_en'] || ''
+    display_name: data[`display_name${suffix}`] ?? data.display_name_en ?? data.disease_name,
+    description: data[`description${suffix}`] ?? data.description_en ?? '',
+    symptoms: data[`symptoms${suffix}`] ?? data.symptoms_en ?? '',
+    causes: data[`causes${suffix}`] ?? (lang === 'am' ? data.causes_am : data.causes_en) ?? '',
+    treatment_organic: data[`treatment_organic${suffix}`] ?? data.treatment_organic_en ?? '',
+    treatment_chemical: data[`treatment_chemical${suffix}`] ?? data.treatment_chemical_en ?? '',
+    prevention_tips: data[`prevention_tips${suffix}`] ?? data.prevention_tips_en ?? ''
   };
 };
 
