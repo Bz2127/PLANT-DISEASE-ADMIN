@@ -48,7 +48,7 @@ formData.append('image', req.file.buffer, {
 
     const mlResponse = await axios.post(ML_SERVICE_URL, formData, {
       headers: { ...formData.getHeaders() },
-      timeout: 60000
+      timeout: 120000
     });
     
     const mlOutput = mlResponse.data;
