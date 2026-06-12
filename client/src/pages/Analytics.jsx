@@ -15,7 +15,7 @@ const Analytics = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`process.env.REACT_APP_API_URL/api/admin/analytics?timeframe=${timeframe}`, {
+      const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/admin/analytics?timeframe=${timeframe}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
