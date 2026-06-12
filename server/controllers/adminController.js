@@ -116,8 +116,8 @@ exports.getUsersList = async (req, res) => {
     const users = await User.findAll({ 
     
       attributes: [
-        'id', 'full_name', 'phone_number', 'status', 'app_localization',
-        ['regional_location', 'location'] 
+        'id', 'full_name', 'phone_number', 'status', 'language_pref',
+        'location'
       ],
       order: [['created_at', 'DESC']] 
     });
