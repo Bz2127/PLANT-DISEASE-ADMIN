@@ -26,7 +26,7 @@ router.post('/register', async (req, res) => {
       full_name: full_name || 'Farmer',
       full_name_am: full_name_am || 'አራሽ',
       phone_number: phone_number,
-      regional_location: location && location.trim() !== '' ? location : 'Unspecified',
+      location: location,
       app_localization: full_name_am ? 'Amharic' : 'English',
       status: 'active'
     });
@@ -44,7 +44,7 @@ router.post('/register', async (req, res) => {
         id: user.id,
         full_name: user.full_name,
         phone_number: user.phone_number,
-        location: user.regional_location,
+        location: user.location,
         language_pref: user.app_localization
       }
     });
@@ -81,7 +81,7 @@ router.post('/login', async (req, res) => {
         id: user.id,
         full_name: user.full_name,
         phone_number: user.phone_number,
-        location: user.regional_location,
+        location: user.location,
         language_pref: user.app_localization
       }
     });
@@ -101,7 +101,7 @@ router.put('/profile', userAuthMiddleware, async (req, res) => {
     user.full_name = req.body.full_name || user.full_name;
     user.phone_number = req.body.phone_number || user.phone_number;
     
-    user.regional_location = req.body.regional_location || req.body.location || user.regional_location;
+    user.location = req.body.location || user.location;
     user.app_localization = req.body.app_localization || req.body.language_pref || user.app_localization;
 
     await user.save();
