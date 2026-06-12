@@ -102,59 +102,39 @@ const DiseaseForm = ({ onDiseaseAdded }) => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const executeFormSubmit = async (e) => {
-    e.preventDefault();
-    setNotification({ text: '', isError: false });
-    setSubmitting(true);
-
-    try {
-      const token = localStorage.getItem('token');
-      const submissionData = { ...formData };
-
-      const config = {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      };
-
-      const checkExist = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/admin/diseases/verify?name=${encodeURIComponent(formData.disease_name)}`, 
-        config
-      ).catch(() => null);
-
-      let res;
-
-      if (checkExist && checkExist.data.exists) {
-        const existingId = checkExist.data.id;
-        res = await axios.put(`${process.env.REACT_APP_API_URL}/api/admin/diseases/${existingId}`, submissionData, config);
-      } else {
-       res = await axios.post(`${process.env.REACT_APP_API_URL}/api/admin/diseases`, submissionData, config);
-      }
-      
-      if (res.data.success) {
-        setNotification({ text: 'Disease data profile integrated and verified successfully in MySQL framework!', isError: false });
-        
-        setFormData({
-          disease_name: '', crop_id: '', status: 'Active', image_url: '',
-          display_name_en: '', description_en: '', symptoms_en: '', causes_en: '', treatment_organic_en: '', treatment_chemical_en: '', prevention_tips_en: '',
-          display_name_am: '', description_am: '', symptoms_am: '', causes_am: '', treatment_organic_am: '', treatment_chemical_am: '', prevention_tips_am: ''
-        });
-        setSelectedFile(null);
-        setFilePreview('');
-        setActiveTab('en');
-
-        if (onDiseaseAdded) onDiseaseAdded();
-      }
-    } catch (err) {
-      setNotification({
-        text: err.response?.data?.message || 'Verification execution error. Check local server terminal console logs.',
-        isError: true
-      });
-    } finally {
-      setSubmitting(false);
+ const executeFormSubmit = async (e) => {
+  e.preventDefault();
+  setSubmitting(true);
+  
+  try {
+    const formDataObj = new FormData();
+    
+    // Append all text fields
+    Object.keys(formData).forEach(key => {
+      formDataObj.append(key, formData[key]);
+    });
+    
+    // Append the actual file
+    if (selectedFile) {
+      formDataObj.append('image', selectedFile);
     }
-  };
+
+    const token = localStorage.getItem('token');
+    // Important: Change Content-Type to multipart/form-data for image uploads
+    await axios.post(`${process.env.REACT_APP_API_URL}/api/admin/diseases`, formDataObj, {
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        //'Content-Type': 'multipart/form-data' 
+      }
+    });
+    
+    // ... rest of your success logic
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden">

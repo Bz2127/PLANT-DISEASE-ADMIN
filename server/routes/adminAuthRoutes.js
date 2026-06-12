@@ -104,5 +104,6 @@ router.get('/scans', authMiddleware, adminController.getScanLogs);
 router.get('/users', authMiddleware, adminController.getUsersList);
 router.put('/users/:id/status', authMiddleware, adminController.toggleUserStatus);
 router.get('/analytics', authMiddleware, adminController.getAnalyticsData);
+router.get('/crops', authMiddleware, adminController.getAllCrops);
 
 module.exports = router;

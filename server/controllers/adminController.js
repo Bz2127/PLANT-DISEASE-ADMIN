@@ -240,3 +240,14 @@ exports.updateAdminPassword = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+exports.getAllCrops = async (req, res) => {
+  try {
+    const crops = await Crop.findAll({
+      attributes: ['id', 'crop_name'] 
+    });
+    res.status(200).json({ success: true, data: crops });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to load crops", error: error.message });
+  }
+};
