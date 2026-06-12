@@ -112,7 +112,7 @@ router.put('/profile', userAuthMiddleware, async (req, res) => {
         id: user.id,
         full_name: user.full_name,
         phone_number: user.phone_number,
-        location: user.regional_location,
+        location: user.location,
         language_pref: user.app_localization
       }
     });

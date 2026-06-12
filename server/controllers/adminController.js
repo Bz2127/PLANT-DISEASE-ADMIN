@@ -146,7 +146,7 @@ exports.getAnalyticsData = async (req, res) => {
     const totalGlobalScans = await Scan.count();
     const regionalOutbreaks = await Scan.findAll({
       attributes: [
-        [Sequelize.col('User.regional_location'), 'location'],
+        [Sequelize.col('User.location'), 'location'],
         [Sequelize.fn('COUNT', Sequelize.col('Scan.id')), 'total_scans']
       ],
       include: [

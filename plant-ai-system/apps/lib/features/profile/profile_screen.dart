@@ -104,7 +104,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // These keys now match your server.js (req.body) expectations
     request.fields['phone_number'] = _phoneController.text.trim();
     request.fields['full_name'] = _nameController.text.trim();
-    request.fields['location'] = _selectedLocation;       // Changed from regional_location
+    request.fields['location'] = _selectedLocation;       // Changed from 
     request.fields['language_pref'] = _selectedLanguage; // Changed from app_localization
 
     if (_imageFile != null) {
