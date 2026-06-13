@@ -6,7 +6,7 @@ const Disease = require('../models/Disease');
 const Crop = require('../models/Crop');
 const { Op } = require('sequelize');
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'https://plant-disease-model-8k82.onrender.com';
 
 Scan.belongsTo(Disease, { foreignKey: 'ai_predicted_disease_id' });
