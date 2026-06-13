@@ -1,11 +1,12 @@
 const axios = require('axios');
 const FormData = require('form-data');
-const fs = require('fs');
+const { createClient } = require('@supabase/supabase-js');
 const Scan = require('../models/Scan');
 const Disease = require('../models/Disease');
 const Crop = require('../models/Crop');
 const { Op } = require('sequelize');
 
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'https://plant-disease-model-8k82.onrender.com';
 
 Scan.belongsTo(Disease, { foreignKey: 'ai_predicted_disease_id' });
@@ -25,12 +26,10 @@ exports.getRecommendation = async (req, res) => {
     if (!nitrogen || !phosphorus || !potassium || !ph || !rainfall || !temperature) {
       return res.status(400).json({ success: false, message: 'Missing soil parameters' });
     }
-
     const payload = {
       type: 'crop',
       data: [Number(nitrogen), Number(phosphorus), Number(potassium), Number(ph), Number(rainfall), Number(temperature)]
     };
-
     const response = await axios.post(`${ML_SERVICE_URL}/predict`, payload);
     res.status(200).json({ success: true, recommended_crop: response.data.result });
   } catch (err) {
@@ -46,6 +45,17 @@ exports.processPlantScan = async (req, res) => {
 
     const { latitude, longitude } = req.body;
     const lang = req.query.lang === 'am' ? 'am' : 'en'; 
+
+    const fileName = `${Date.now()}_${req.file.originalname}`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('scan-images')
+      .upload(fileName, req.file.buffer, { contentType: req.file.mimetype });
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('scan-images')
+      .getPublicUrl(fileName);
 
     const formData = new FormData();
     formData.append('image', req.file.buffer, {
@@ -80,10 +90,9 @@ exports.processPlantScan = async (req, res) => {
 
     const diseaseMapping = { 'Teff Rust': 'Teff-Rust' };
     const targetName = diseaseMapping[rawResult] || rawResult;
-
     const determinedCropId = await getDynamicCropId(targetName);
 
-    const [diseaseData, created] = await Disease.findOrCreate({
+    const [diseaseData] = await Disease.findOrCreate({
       where: { disease_name: targetName },
       defaults: {
         crop_id: determinedCropId,
@@ -108,7 +117,7 @@ exports.processPlantScan = async (req, res) => {
     await Scan.create({
       user_id: userId,
       crop_id: diseaseData.crop_id,
-      image_url: 'in-memory-process',
+      image_url: publicUrl,
       ai_predicted_disease_id: diseaseData.id,
       confidence_level: mlOutput.confidence || 1.0,
       raw_ai_result: targetName,

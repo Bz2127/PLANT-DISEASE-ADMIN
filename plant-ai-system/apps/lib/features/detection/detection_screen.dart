@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/api/dio_client.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DetectionScreen extends StatefulWidget {
   const DetectionScreen({super.key});
@@ -21,7 +20,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
   Uint8List? _webImageBytes;
   final ImagePicker _picker = ImagePicker();
   bool _isProcessing = false;
-  String _statusMessage = "Analyzing..."; 
+  String _statusMessage = "Analyzing...";
 
   Future<void> _pickImage(ImageSource source) async {
     if (_isProcessing) return;
@@ -58,7 +57,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
   Future<void> _proceedToAnalysis(XFile fileToAnalyze) async {
     if (fileToAnalyze.path.isEmpty) return;
 
-    setState(() => _statusMessage = "Uploading image...");
+    setState(() => _statusMessage = "Analyzing image...");
 
     try {
       Position? position;
@@ -74,27 +73,17 @@ class _DetectionScreenState extends State<DetectionScreen> {
         debugPrint("Location error: $e");
       }
 
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
       final fileBytes = await fileToAnalyze.readAsBytes();
-
-      await Supabase.instance.client.storage
-          .from('scan-images')
-          .uploadBinary(fileName, fileBytes);
-
-      final imageUrl = Supabase.instance.client.storage
-          .from('scan-images')
-          .getPublicUrl(fileName);
-
-      setState(() => _statusMessage = "AI model is waking up, please wait...");
+      final fileName = fileToAnalyze.name;
 
       FormData formData = FormData.fromMap({
-        'image_url': imageUrl,
-        'latitude': position?.latitude?.toString(),
-        'longitude': position?.longitude?.toString(),
+        'image': MultipartFile.fromBytes(fileBytes, filename: fileName),
+        'latitude': position?.latitude?.toString() ?? '0.0',
+        'longitude': position?.longitude?.toString() ?? '0.0',
       });
 
       final response = await DioClient.instance.post(
-        '/scans/predict-disease',
+        '/api/scans/predict-disease',
         data: formData,
         options: Options(receiveTimeout: const Duration(seconds: 90)),
       );
@@ -106,7 +95,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
         });
 
         context.push('/result', extra: {
-          'imageUrl': imageUrl,
+          'imageUrl': '',
           'analysisData': response.data,
         });
       }
