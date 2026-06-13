@@ -49,14 +49,14 @@ class AppRouter {
             final analysisData = params['analysisData'] as Map<String, dynamic>? ?? {};
 
             return ResultScreen(
-              imagePath: imagePath,
+              imageUrl: imagePath,
               analysisData: analysisData,
             );
           }
 
           // Fallback safe defaults if empty state configurations are called
           return const ResultScreen(
-            imagePath: '',
+            imageUrl: '',
             analysisData: {},
           );
         },
