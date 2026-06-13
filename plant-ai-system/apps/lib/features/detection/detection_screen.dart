@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:typed_data';
-import 'dart:io' show File, Directory;
+import 'dart:io' show File;
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/api/dio_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -22,6 +21,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
   Uint8List? _webImageBytes;
   final ImagePicker _picker = ImagePicker();
   bool _isProcessing = false;
+  String _statusMessage = "Analyzing..."; 
 
   Future<void> _pickImage(ImageSource source) async {
     if (_isProcessing) return;
@@ -55,8 +55,10 @@ class _DetectionScreenState extends State<DetectionScreen> {
     }
   }
 
-Future<void> _proceedToAnalysis(XFile fileToAnalyze) async {
+  Future<void> _proceedToAnalysis(XFile fileToAnalyze) async {
     if (fileToAnalyze.path.isEmpty) return;
+
+    setState(() => _statusMessage = "Uploading image...");
 
     try {
       Position? position;
@@ -72,24 +74,21 @@ Future<void> _proceedToAnalysis(XFile fileToAnalyze) async {
         debugPrint("Location error: $e");
       }
 
-      // 1. Prepare the file
       final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
       final fileBytes = await fileToAnalyze.readAsBytes();
 
-      // 2. Upload to Supabase Storage
       await Supabase.instance.client.storage
           .from('scan-images')
           .uploadBinary(fileName, fileBytes);
 
-      // 3. Get the public URL
       final imageUrl = Supabase.instance.client.storage
           .from('scan-images')
           .getPublicUrl(fileName);
 
-      // 4. Send metadata to your Node.js backend via Dio
-      // We pass the imageUrl so your MySQL database can store the reference
+      setState(() => _statusMessage = "AI model is waking up, please wait...");
+
       FormData formData = FormData.fromMap({
-        'image_url': imageUrl, 
+        'image_url': imageUrl,
         'latitude': position?.latitude?.toString(),
         'longitude': position?.longitude?.toString(),
       });
@@ -97,6 +96,7 @@ Future<void> _proceedToAnalysis(XFile fileToAnalyze) async {
       final response = await DioClient.instance.post(
         '/scans/predict-disease',
         data: formData,
+        options: Options(receiveTimeout: const Duration(seconds: 90)),
       );
 
       if (response.statusCode == 200 && response.data != null && mounted) {
@@ -106,7 +106,7 @@ Future<void> _proceedToAnalysis(XFile fileToAnalyze) async {
         });
 
         context.push('/result', extra: {
-          'imageUrl': imageUrl, // Use the URL to display in result_screen
+          'imageUrl': imageUrl,
           'analysisData': response.data,
         });
       }
@@ -123,6 +123,7 @@ Future<void> _proceedToAnalysis(XFile fileToAnalyze) async {
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -136,7 +137,16 @@ Future<void> _proceedToAnalysis(XFile fileToAnalyze) async {
         children: [
           Expanded(
             child: _isProcessing
-                ? const Center(child: CircularProgressIndicator(color: Colors.green))
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircularProgressIndicator(color: Colors.green),
+                        const SizedBox(height: 20),
+                        Text(_statusMessage, style: const TextStyle(color: Colors.white)),
+                      ],
+                    ),
+                  )
                 : _pickedFile != null
                     ? (kIsWeb
                         ? Image.memory(_webImageBytes!, fit: BoxFit.contain)
