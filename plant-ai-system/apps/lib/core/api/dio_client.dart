@@ -6,8 +6,8 @@ class DioClient {
   static final Dio _dio = Dio(
     BaseOptions(
       baseUrl: 'https://plant-disease-backend-yr3j.onrender.com/api', 
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 60),
+      receiveTimeout: const Duration(seconds: 60),
       responseType: ResponseType.json,
     ),
   );
