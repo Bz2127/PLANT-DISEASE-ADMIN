@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // 1. Import Supabase
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Added for security
 import 'core/routing/app_router.dart';
 import 'core/api/dio_client.dart';
 import 'l10n/app_localizations.dart';
@@ -9,10 +10,13 @@ void main() async {
   // Ensures Flutter framework services are ready before initializing external APIs
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 2. Initialize Supabase with your project credentials
+  // Load environment variables from a .env file
+  await dotenv.load(fileName: ".env");
+
+  // 2. Initialize Supabase using environment variables
   await Supabase.initialize(
-    url: 'https://gasnoxduzjqgnvmzsrki.supabase.co',
-    anonKey: 'sb_publishable_1hoS1unpBpVvXSG229jjUw_dQMsM7MZ', 
+    url: dotenv.get('SUPABASE_URL'),
+    anonKey: dotenv.get('SUPABASE_ANON_KEY'), 
   );
 
   DioClient.init();
