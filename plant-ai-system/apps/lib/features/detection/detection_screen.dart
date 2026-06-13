@@ -83,7 +83,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
       });
 
       final response = await DioClient.instance.post(
-        '/api/scans/predict-disease',
+        '/scans/predict-disease',
         data: formData,
         options: Options(receiveTimeout: const Duration(seconds: 90)),
       );
