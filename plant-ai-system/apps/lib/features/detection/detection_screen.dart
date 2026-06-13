@@ -8,6 +8,7 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/api/dio_client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DetectionScreen extends StatefulWidget {
   const DetectionScreen({super.key});
@@ -54,7 +55,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
     }
   }
 
-  Future<void> _proceedToAnalysis(XFile fileToAnalyze) async {
+Future<void> _proceedToAnalysis(XFile fileToAnalyze) async {
     if (fileToAnalyze.path.isEmpty) return;
 
     try {
@@ -71,12 +72,24 @@ class _DetectionScreenState extends State<DetectionScreen> {
         debugPrint("Location error: $e");
       }
 
-      final Directory appDir = await getApplicationDocumentsDirectory();
-      final String fileName = fileToAnalyze.path.split('/').last;
-      final File permanentFile = await File(fileToAnalyze.path).copy('${appDir.path}/$fileName');
+      // 1. Prepare the file
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final fileBytes = await fileToAnalyze.readAsBytes();
 
+      // 2. Upload to Supabase Storage
+      await Supabase.instance.client.storage
+          .from('scan-images')
+          .uploadBinary(fileName, fileBytes);
+
+      // 3. Get the public URL
+      final imageUrl = Supabase.instance.client.storage
+          .from('scan-images')
+          .getPublicUrl(fileName);
+
+      // 4. Send metadata to your Node.js backend via Dio
+      // We pass the imageUrl so your MySQL database can store the reference
       FormData formData = FormData.fromMap({
-        'image': await MultipartFile.fromFile(permanentFile.path, filename: fileName),
+        'image_url': imageUrl, 
         'latitude': position?.latitude?.toString(),
         'longitude': position?.longitude?.toString(),
       });
@@ -87,16 +100,13 @@ class _DetectionScreenState extends State<DetectionScreen> {
       );
 
       if (response.statusCode == 200 && response.data != null && mounted) {
-        final targetPath = permanentFile.path;
-        
         setState(() {
           _pickedFile = null;
           _webImageBytes = null;
         });
 
-        // Pass both parameters using a Map extra argument payload
         context.push('/result', extra: {
-          'imagePath': targetPath,
+          'imageUrl': imageUrl, // Use the URL to display in result_screen
           'analysisData': response.data,
         });
       }
@@ -113,7 +123,6 @@ class _DetectionScreenState extends State<DetectionScreen> {
       }
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

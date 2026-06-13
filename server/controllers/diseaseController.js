@@ -4,33 +4,27 @@ const Crop = require('../models/Crop');
 const Scan = require('../models/Scan');
 
 // Helper function to dynamically map object fields based on chosen language
-const formatLocalizedData = (diseaseInstance, lang = 'en') => {
+const formatLocalizedData = (diseaseInstance) => {
   if (!diseaseInstance) return null;
   
-  // Safeguard: fallback to English if an invalid language string is passed
-  const suffix = lang === 'am' ? '_am' : '_en';
-  
-  // Convert Sequelize instance to a clean JSON object
   const cleanData = diseaseInstance.toJSON ? diseaseInstance.toJSON() : { ...diseaseInstance };
 
-return {
+  return {
     id: cleanData.id,
-    disease_name: cleanData.disease_name,
-    crop_id: cleanData.crop_id,
-    image_url: cleanData.image_url,
-    status: cleanData.status,
-    Crop: cleanData.Crop,
-    created_at: cleanData.created_at,
-    updated_at: cleanData.updated_at,
+    // Provide both, so the frontend can choose which one to use
+    nameEn: cleanData.display_name_en ?? cleanData.disease_name,
+    nameAm: cleanData.display_name_am ?? cleanData.disease_name,
     
-    // Replace all instances of 'data' with 'cleanData'
-    display_name: cleanData[`display_name${suffix}`] ?? cleanData.display_name_en ?? cleanData.disease_name,
-    description: cleanData[`description${suffix}`] ?? cleanData.description_en ?? '',
-    symptoms: cleanData[`symptoms${suffix}`] ?? cleanData.symptoms_en ?? '',
-    causes: cleanData[`causes${suffix}`] ?? (lang === 'am' ? cleanData.causes_am : cleanData.causes_en) ?? '',
-    treatment_organic: cleanData[`treatment_organic${suffix}`] ?? cleanData.treatment_organic_en ?? '',
-    treatment_chemical: cleanData[`treatment_chemical${suffix}`] ?? cleanData.treatment_chemical_en ?? '',
-    prevention_tips: cleanData[`prevention_tips${suffix}`] ?? cleanData.prevention_tips_en ?? ''
+    // Continue for other fields...
+    descriptionEn: cleanData.description_en ?? '',
+    descriptionAm: cleanData.description_am ?? '',
+    
+    treatmentOrganic: cleanData.treatment_organic_en ?? '', // Adjust this to match your Model
+    treatmentChemical: cleanData.treatment_chemical_en ?? '', 
+    prevention: cleanData.prevention_tips_en ?? '',
+    
+    // Keep confidence or other computed fields
+    confidence: cleanData.confidence ?? 0.0, 
   };
 };
 

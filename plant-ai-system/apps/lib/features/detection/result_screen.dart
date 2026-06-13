@@ -1,16 +1,16 @@
-import 'dart:io';
+// import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:farmer_mobile_app/shared/models/disease_model.dart';
 import 'package:farmer_mobile_app/features/advisory/advisory_screen.dart';
 import 'package:farmer_mobile_app/features/voice/voice_assistant_service.dart';
 
 class ResultScreen extends StatefulWidget {
-  final String imagePath;
+  final String imageUrl;
   final Map<String, dynamic> analysisData; // Added parameter to handle the pre-loaded backend data
 
   const ResultScreen({
     super.key, 
-    required this.imagePath, 
+    required this.imageUrl,
     required this.analysisData, // Initialized in constructor
   });
 
@@ -35,12 +35,8 @@ class _ResultScreenState extends State<ResultScreen> {
     try {
       // 1. Initialize Text-to-Speech Engine
       await _voiceService.initVoice(context);
-      
-      // 2. Validate Image File Presence Locally
-      final File imageFile = File(widget.imagePath);
-      if (widget.imagePath.isNotEmpty && !imageFile.existsSync()) {
-        throw Exception("Image file not found at: ${widget.imagePath}");
-      }
+    
+     
 
       // 3. Process the data passed from DetectionScreen instantly (No second API call!)
       if (widget.analysisData.isNotEmpty) {
@@ -156,12 +152,17 @@ class _ResultScreenState extends State<ResultScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (widget.imagePath.isNotEmpty)
-                  SizedBox(
-                    height: isWideScreen ? 350 : 250,
-                    width: double.infinity,
-                    child: Image.file(File(widget.imagePath), fit: BoxFit.cover),
-                  ),
+               if (widget.imageUrl.isNotEmpty)
+  SizedBox(
+    height: isWideScreen ? 350 : 250,
+    width: double.infinity,
+    child: Image.network(
+      widget.imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => 
+          const Center(child: Icon(Icons.broken_image, color: Colors.white54, size: 50)),
+    ),
+  ),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: dynamicHorizontalPadding, vertical: 20),
                   child: Column(
