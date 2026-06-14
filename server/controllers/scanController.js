@@ -12,12 +12,27 @@ const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'https://plant-disease-mode
 Scan.belongsTo(Disease, { foreignKey: 'ai_predicted_disease_id' });
 Scan.belongsTo(Crop, { foreignKey: 'crop_id' });
 
+const diseaseCropMap = {
+  'Anthracnose': 'coffee',
+  'Bacterial-Spot': 'tomato',
+  'Black-Leaf-Spot': 'banana',
+  'Black-Rot': 'grapes',
+  'Bract_Mosaic': 'banana',
+  'Cordana': 'banana',
+  'Downey-Mildew': 'grapes',
+  'Downy_Mildew': 'grapes',
+  'Early-Leaf-Spot': 'chickpea'
+};
+
 async function getDynamicCropId(aiResult) {
-  const crops = await Crop.findAll();
-  const match = crops.find(crop => 
-    aiResult.toLowerCase().includes(crop.crop_name.toLowerCase())
-  );
-  return match ? match.id : null;
+  const cropName = diseaseCropMap[aiResult.trim()];
+  if (!cropName) return null;
+
+  const crop = await Crop.findOne({
+    where: { crop_name: cropName }
+  });
+
+  return crop ? crop.id : null;
 }
 
 exports.getRecommendation = async (req, res) => {
@@ -63,40 +78,37 @@ exports.processPlantScan = async (req, res) => {
       contentType: req.file.mimetype
     });
 
-   let mlResponse;
+    let mlResponse;
 
-try {
-  mlResponse = await axios.post(
-    `${ML_SERVICE_URL}/predict`,
-    formData,
-    {
-      headers: { ...formData.getHeaders() },
-      timeout: 120000
+    try {
+      mlResponse = await axios.post(
+        `${ML_SERVICE_URL}/predict`,
+        formData,
+        {
+          headers: { ...formData.getHeaders() },
+          timeout: 120000
+        }
+      );
+
+      console.log("ML SUCCESS:", mlResponse.data);
+
+    } catch (err) {
+      console.log("========== ML ERROR ==========");
+      console.log({
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data
+      });
+      throw err;
     }
-  );
 
-  console.log("ML SUCCESS:", mlResponse.data);
-
-} catch (err) {
-
-  console.log("========== ML ERROR ==========");
-
-  console.log({
-    message: err.message,
-    status: err.response?.status,
-    data: err.response?.data
-  });
-
-  throw err;
-}
-
-const mlOutput = mlResponse.data;
+    const mlOutput = mlResponse.data;
     if (mlOutput.error) {
       return res.status(500).json({ success: false, message: mlOutput.error });
     }
 
     const rawResult = mlOutput.result ? mlOutput.result.trim() : '';
-    
+
     if (rawResult === 'Non-Plant' || rawResult === 'Unknown' || !rawResult) {
       return res.status(200).json({
         id: 0,
@@ -110,11 +122,9 @@ const mlOutput = mlResponse.data;
       });
     }
 
-    const diseaseMapping = { 'Teff Rust': 'Teff-Rust' };
-    const targetName = diseaseMapping[rawResult] || rawResult;
-    console.log("TARGET NAME:", targetName);
+    const targetName = rawResult;
+
     const determinedCropId = await getDynamicCropId(targetName);
-    console.log("CROP ID:", determinedCropId);
 
     const [diseaseData] = await Disease.findOrCreate({
       where: { disease_name: targetName },
@@ -134,23 +144,20 @@ const mlOutput = mlResponse.data;
         prevention_tips_en: 'Maintain proper spacing.',
         prevention_tips_am: 'ለአየር ዝውውር በቂ የተክሎች ርቀት ይጠብቁ።'
       }
-    })
-    console.log("DISEASE DATA:", diseaseData?.id);;
+    });
 
     const userId = req.user ? req.user.id : null;
-    console.log("DISEASE DATA:", diseaseData?.id);
 
     await Scan.create({
       user_id: userId,
-      crop_id: diseaseData.crop_id,
+      crop_id: determinedCropId,
       image_url: publicUrl,
       ai_predicted_disease_id: diseaseData.id,
       confidence_level: mlOutput.confidence || 1.0,
       raw_ai_result: targetName,
       latitude: latitude || null,
       longitude: longitude || null
-    })
-    console.log("SCAN CREATED SUCCESSFULLY");;
+    });
 
     let cleanNameEn = (diseaseData.display_name_en || diseaseData.disease_name).replace(' (Pending Review)', '').replace(/-/g, ' ').trim();
     let cleanNameAm = (diseaseData.display_name_am || diseaseData.disease_name).replace(' (ያልተመረመረ በሽታ)', '').trim();
@@ -164,28 +171,27 @@ const mlOutput = mlResponse.data;
       nameEn: cleanNameEn,
       nameAm: cleanNameAm,
       raw_ml_key: diseaseData.disease_name,
-      confidence: mlOutput.confidence || 1.0, 
+      confidence: mlOutput.confidence || 1.0,
       treatmentOrganic: lang === 'am' ? diseaseData.treatment_organic_am : diseaseData.treatment_organic_en,
       treatmentChemical: lang === 'am' ? diseaseData.treatment_chemical_am : diseaseData.treatment_chemical_en,
       prevention: lang === 'am' ? diseaseData.prevention_tips_am : diseaseData.prevention_tips_en
     });
 
   } catch (err) {
-  console.error("========== SCAN ERROR ==========");
+    console.error("========== SCAN ERROR ==========");
+    console.error({
+      message: err.message,
+      status: err.response?.status,
+      data: err.response?.data
+    });
 
-  console.error({
-    message: err.message,
-    status: err.response?.status,
-    data: err.response?.data
-  });
-
-  return res.status(err.response?.status || 500).json({
-    success: false,
-    status: err.response?.status,
-    message: err.message,
-    details: err.response?.data
-  });
-}
+    return res.status(err.response?.status || 500).json({
+      success: false,
+      status: err.response?.status,
+      message: err.message,
+      details: err.response?.data
+    });
+  }
 };
 
 exports.getUserHistory = async (req, res) => {
