@@ -112,7 +112,9 @@ const mlOutput = mlResponse.data;
 
     const diseaseMapping = { 'Teff Rust': 'Teff-Rust' };
     const targetName = diseaseMapping[rawResult] || rawResult;
+    console.log("TARGET NAME:", targetName);
     const determinedCropId = await getDynamicCropId(targetName);
+    console.log("CROP ID:", determinedCropId);
 
     const [diseaseData] = await Disease.findOrCreate({
       where: { disease_name: targetName },
@@ -132,9 +134,11 @@ const mlOutput = mlResponse.data;
         prevention_tips_en: 'Maintain proper spacing.',
         prevention_tips_am: 'ለአየር ዝውውር በቂ የተክሎች ርቀት ይጠብቁ።'
       }
-    });
+    })
+    console.log("DISEASE DATA:", diseaseData?.id);;
 
     const userId = req.user ? req.user.id : null;
+    console.log("DISEASE DATA:", diseaseData?.id);
 
     await Scan.create({
       user_id: userId,
@@ -145,7 +149,8 @@ const mlOutput = mlResponse.data;
       raw_ai_result: targetName,
       latitude: latitude || null,
       longitude: longitude || null
-    });
+    })
+    console.log("SCAN CREATED SUCCESSFULLY");;
 
     let cleanNameEn = (diseaseData.display_name_en || diseaseData.disease_name).replace(' (Pending Review)', '').replace(/-/g, ' ').trim();
     let cleanNameAm = (diseaseData.display_name_am || diseaseData.disease_name).replace(' (ያልተመረመረ በሽታ)', '').trim();
