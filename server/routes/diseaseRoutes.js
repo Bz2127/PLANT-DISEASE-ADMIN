@@ -4,7 +4,12 @@ const router = express.Router();
 const { addDisease, getDiseases, getAdvisoryByScanId } = require('../controllers/diseaseController');
 const authMiddleware = require('../middleware/authMiddleware');
 const Crop = require('../models/Crop');
-const Disease = require('../models/Disease'); // Import Disease model directly for quick operations
+const Disease = require('../models/Disease');
+
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() }); 
+
+// Import Disease model directly for quick operations
 
 // 1. PUBLIC ROUTES: Accessible by the Farmer Mobile App
 
@@ -40,7 +45,7 @@ router.use(authMiddleware);
 
 // 3. PROTECTED ROUTES: Handles adding and getting diseases safely
 router.route('/')
-  .post(addDisease)
+  .post(upload.single('image'), addDisease)
   .get(getDiseases);
 
 // =========================================================================

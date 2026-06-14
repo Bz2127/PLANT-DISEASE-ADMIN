@@ -1,60 +1,90 @@
-// server/controllers/diseaseController.js
 const Disease = require('../models/Disease');
 const Crop = require('../models/Crop');
 const Scan = require('../models/Scan');
+const supabase = require('../config/supabase');
 
-// Helper function to dynamically map object fields based on chosen language
+const uploadImageToSupabase = async (file) => {
+  const fileName = `${Date.now()}-${file.originalname}`;
+
+  const { error } = await supabase.storage
+    .from('disease-images')
+    .upload(fileName, file.buffer, {
+      contentType: file.mimetype
+    });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage
+    .from('disease-images')
+    .getPublicUrl(fileName);
+
+  return data.publicUrl;
+};
+
 const formatLocalizedData = (diseaseInstance) => {
   if (!diseaseInstance) return null;
-  
+
   const cleanData = diseaseInstance.toJSON ? diseaseInstance.toJSON() : { ...diseaseInstance };
 
   return {
     id: cleanData.id,
-    // Provide both, so the frontend can choose which one to use
     nameEn: cleanData.display_name_en ?? cleanData.disease_name,
     nameAm: cleanData.display_name_am ?? cleanData.disease_name,
-    
-    // Continue for other fields...
+
     descriptionEn: cleanData.description_en ?? '',
     descriptionAm: cleanData.description_am ?? '',
-    
-    treatmentOrganic: cleanData.treatment_organic_en ?? '', // Adjust this to match your Model
-    treatmentChemical: cleanData.treatment_chemical_en ?? '', 
+
+    treatmentOrganic: cleanData.treatment_organic_en ?? '',
+    treatmentChemical: cleanData.treatment_chemical_en ?? '',
     prevention: cleanData.prevention_tips_en ?? '',
-    
-    // Keep confidence or other computed fields
-    confidence: cleanData.confidence ?? 0.0, 
+
+    image_url: cleanData.image_url ?? '',
+
+    confidence: cleanData.confidence ?? 0.0,
   };
 };
 
 exports.addDisease = async (req, res) => {
   try {
-    const { 
-      disease_name, crop_id, status, 
+    const {
+      disease_name, crop_id, status,
       display_name_en, display_name_am,
-      description_en, description_am, 
-      symptoms_en, symptoms_am, 
-      causes_en, causes_am, 
-      treatment_organic_en, treatment_organic_am, 
-      treatment_chemical_en, treatment_chemical_am, 
-      prevention_tips_en, prevention_tips_am, 
-      image_url 
+      description_en, description_am,
+      symptoms_en, symptoms_am,
+      causes_en, causes_am,
+      treatment_organic_en, treatment_organic_am,
+      treatment_chemical_en, treatment_chemical_am,
+      prevention_tips_en, prevention_tips_am
     } = req.body;
 
     if (!disease_name || !crop_id) {
-        return res.status(400).json({ success: false, message: 'Please provide disease name and target crop ID' });
+      return res.status(400).json({ success: false, message: 'Please provide disease name and target crop ID' });
+    }
+
+    let image_url = null;
+
+    if (req.file) {
+      image_url = await uploadImageToSupabase(req.file);
     }
 
     const disease = await Disease.create({
-      disease_name, crop_id, status: status || 'Active', 
-      display_name_en, display_name_am,
-      description_en, description_am, 
-      symptoms_en, symptoms_am, 
-      causes_en, causes_am, 
-      treatment_organic_en, treatment_organic_am, 
-      treatment_chemical_en, treatment_chemical_am, 
-      prevention_tips_en, prevention_tips_am, 
+      disease_name,
+      crop_id,
+      status: status || 'Active',
+      display_name_en,
+      display_name_am,
+      description_en,
+      description_am,
+      symptoms_en,
+      symptoms_am,
+      causes_en,
+      causes_am,
+      treatment_organic_en,
+      treatment_organic_am,
+      treatment_chemical_en,
+      treatment_chemical_am,
+      prevention_tips_en,
+      prevention_tips_am,
       image_url
     });
 
@@ -70,15 +100,13 @@ exports.addDisease = async (req, res) => {
 
 exports.getDiseases = async (req, res) => {
   try {
-    // Read optional language preference from query parameters string (?lang=am)
     const { lang } = req.query;
 
     const diseases = await Disease.findAll({
       order: [['id', 'DESC']],
       include: [{ model: Crop, attributes: ['crop_name'] }]
-    }); 
+    });
 
-    // Dynamically map list values before sending them to the client
     const localizedDiseases = diseases.map(item => formatLocalizedData(item, lang));
 
     res.status(200).json({ success: true, data: localizedDiseases });
@@ -90,16 +118,14 @@ exports.getDiseases = async (req, res) => {
 exports.getAdvisoryByScanId = async (req, res) => {
   try {
     const { scanId } = req.params;
-    const { lang } = req.query; // Capture app language context (?lang=am or ?lang=en)
+    const { lang } = req.query;
+
     let scan;
 
     if (scanId === '0' || scanId === 'latest_id') {
       scan = await Scan.findOne({
         order: [['id', 'DESC']],
-        include: [{ 
-          model: Disease,
-          required: true 
-        }]
+        include: [{ model: Disease, required: true }]
       });
     } else {
       scan = await Scan.findByPk(scanId, {
@@ -108,33 +134,32 @@ exports.getAdvisoryByScanId = async (req, res) => {
     }
 
     if (!scan) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "No scan records found in the database." 
+      return res.status(404).json({
+        success: false,
+        message: "No scan records found in the database."
       });
     }
 
     if (!scan.Disease) {
-      return res.status(404).json({ 
-        success: false, 
-        message: `Scan found, but no matching advisory treatments matching disease ID inside your Diseases table.` 
+      return res.status(404).json({
+        success: false,
+        message: `Scan found, but no matching advisory treatments matching disease ID inside your Diseases table.`
       });
     }
 
-    // Process output variables on the fly based on the user's selected language context
     const localizedAdvisory = formatLocalizedData(scan.Disease, lang);
 
-    return res.status(200).json({ 
-      success: true, 
-      data: localizedAdvisory 
+    return res.status(200).json({
+      success: true,
+      data: localizedAdvisory
     });
 
   } catch (err) {
     console.error("Advisory Engine Error:", err);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Server Error processing advisory layout', 
-      error: err.message 
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error processing advisory layout',
+      error: err.message
     });
   }
 };
