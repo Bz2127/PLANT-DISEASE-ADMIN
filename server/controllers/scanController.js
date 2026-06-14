@@ -63,8 +63,10 @@ exports.processPlantScan = async (req, res) => {
       contentType: req.file.mimetype
     });
 
-   try {
-  const mlResponse = await axios.post(
+   let mlResponse;
+
+try {
+  mlResponse = await axios.post(
     `${ML_SERVICE_URL}/predict`,
     formData,
     {
@@ -79,18 +81,16 @@ exports.processPlantScan = async (req, res) => {
 
   console.log("========== ML ERROR ==========");
 
-  console.log("STATUS:", err.response?.status);
-
-  console.log("HEADERS:", err.response?.headers);
-
-  console.log("DATA:", err.response?.data);
-
-  console.log("MESSAGE:", err.message);
+  console.log({
+    message: err.message,
+    status: err.response?.status,
+    data: err.response?.data
+  });
 
   throw err;
 }
-    
-    const mlOutput = mlResponse.data;
+
+const mlOutput = mlResponse.data;
     if (mlOutput.error) {
       return res.status(500).json({ success: false, message: mlOutput.error });
     }
