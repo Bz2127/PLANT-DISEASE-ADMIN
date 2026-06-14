@@ -63,10 +63,32 @@ exports.processPlantScan = async (req, res) => {
       contentType: req.file.mimetype
     });
 
-    const mlResponse = await axios.post(`${ML_SERVICE_URL}/predict`, formData, {
+   try {
+  const mlResponse = await axios.post(
+    `${ML_SERVICE_URL}/predict`,
+    formData,
+    {
       headers: { ...formData.getHeaders() },
       timeout: 120000
-    });
+    }
+  );
+
+  console.log("ML SUCCESS:", mlResponse.data);
+
+} catch (err) {
+
+  console.log("========== ML ERROR ==========");
+
+  console.log("STATUS:", err.response?.status);
+
+  console.log("HEADERS:", err.response?.headers);
+
+  console.log("DATA:", err.response?.data);
+
+  console.log("MESSAGE:", err.message);
+
+  throw err;
+}
     
     const mlOutput = mlResponse.data;
     if (mlOutput.error) {
@@ -144,9 +166,21 @@ exports.processPlantScan = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("========== SCAN ERROR ==========", err);
-    return res.status(500).json({ success: false, message: err.message });
-  }
+  console.error("========== SCAN ERROR ==========");
+
+  console.error({
+    message: err.message,
+    status: err.response?.status,
+    data: err.response?.data
+  });
+
+  return res.status(err.response?.status || 500).json({
+    success: false,
+    status: err.response?.status,
+    message: err.message,
+    details: err.response?.data
+  });
+}
 };
 
 exports.getUserHistory = async (req, res) => {
