@@ -7,7 +7,7 @@ const uploadImageToSupabase = async (file) => {
   const fileName = `${Date.now()}-${file.originalname}`;
 
   const { error } = await supabase.storage
-    .from('disease-images')
+    .from('scan-images')
     .upload(fileName, file.buffer, {
       contentType: file.mimetype
     });
@@ -15,7 +15,7 @@ const uploadImageToSupabase = async (file) => {
   if (error) throw error;
 
   const { data } = supabase.storage
-    .from('disease-images')
+    .from('scan-images')
     .getPublicUrl(fileName);
 
   return data.publicUrl;
