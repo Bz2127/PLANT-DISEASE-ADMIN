@@ -73,9 +73,20 @@ class _AdvisoryScreenState extends State<AdvisoryScreen> {
                       ),
                       const SizedBox(height: 20),
                       // Matches the exact attributes defined in your Node.js disease model schema mapping strings
-                      _buildSection("ኦርጋኒክ ሕክምና (Organic Treatment)", _data!['treatment_organic']),
-                      _buildSection("ኬሚካላዊ ሕክምና (Chemical Treatment)", _data!['treatment_chemical']),
-                      _buildSection("መከላከያ መንገዶች (Prevention Tips)", _data!['prevention_tips']),
+                      _buildSection(
+  "ኦርጋኒክ ሕክምና (Organic Treatment)",
+  _data!['treatmentOrganic'] ?? _data!['treatment_organic_en'] ?? _data!['treatment_organic_am'],
+),
+
+_buildSection(
+  "ኬሚካላዊ ሕክምና (Chemical Treatment)",
+  _data!['treatmentChemical'] ?? _data!['treatment_chemical_en'] ?? _data!['treatment_chemical_am'],
+),
+
+_buildSection(
+  "መከላከያ መንገዶች (Prevention Tips)",
+  _data!['prevention'] ?? _data!['prevention_tips_en'] ?? _data!['prevention_tips_am'],
+),
                     ],
                   ),
                 ),
