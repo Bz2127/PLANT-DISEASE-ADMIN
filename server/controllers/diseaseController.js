@@ -72,11 +72,43 @@ exports.addDisease = async (req, res) => {
       });
     }
 
-    const existingDisease = await Disease.findOne({
-      where: {
-        disease_name: disease_name.trim()
-      }
-    });
+    if (existingDisease) {
+  let image_url = existingDisease.image_url;
+
+  if (req.file) {
+    image_url = await uploadImageToSupabase(req.file);
+  }
+
+  await existingDisease.update({
+    crop_id: Number(crop_id),
+    status: status || existingDisease.status,
+    display_name_en,
+    display_name_am,
+    description_en,
+    description_am,
+    symptoms_en,
+    symptoms_am,
+    causes_en,
+    causes_am,
+    treatment_organic_en,
+    treatment_organic_am,
+    treatment_chemical_en,
+    treatment_chemical_am,
+    prevention_tips_en,
+    prevention_tips_am,
+    image_url
+  });
+
+  const updated = await Disease.findByPk(existingDisease.id, {
+    include: [{ model: Crop, attributes: ['crop_name'] }]
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "Disease updated successfully",
+    data: updated
+  });
+}
 
     if (existingDisease) {
       return res.status(409).json({
