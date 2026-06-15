@@ -10,19 +10,28 @@ exports.getDashboardStats = async (req, res) => {
     const totalScans = await Scan.count();
     const activeUsers = await User.count();
 
-    const mostCommon = await Scan.findOne({
-      attributes: [
-        'ai_predicted_disease_id',
-        [Sequelize.fn('COUNT', Sequelize.col('Scan.id')), 'diseaseCount']
-      ],
-      where: { ai_predicted_disease_id: { [Sequelize.Op.ne]: null } },
-      group: ['ai_predicted_disease_id', 'Disease.id'],
-      order: [[Sequelize.fn('COUNT', Sequelize.col('Scan.id')), 'DESC']],
-      include: [{ model: Disease, attributes: ['disease_name'] }],
-      limit: 1
-    });
+   const mostCommon = await Scan.findAll({
+  attributes: [
+    'ai_predicted_disease_id',
+    [Sequelize.fn('COUNT', Sequelize.col('Scan.id')), 'count']
+  ],
+  where: {
+    ai_predicted_disease_id: { [Sequelize.Op.ne]: null }
+  },
+  include: [
+    {
+      model: Disease,
+      attributes: ['disease_name']
+    }
+  ],
+  group: ['ai_predicted_disease_id', 'Disease.id', 'Disease.disease_name'],
+  order: [[Sequelize.literal('count'), 'DESC']],
+  limit: 1,
+  raw: true,
+  nest: true
+});
 
-    let commonDisease = mostCommon?.Disease?.disease_name || 'Healthy Tissue';
+    let commonDisease = mostCommon?.[0]?.Disease?.disease_name || 'No Data';
 
     const avgAccuracy = await Scan.findOne({
       attributes: [[Sequelize.fn('AVG', Sequelize.col('confidence_level')), 'avgConfidence']]
@@ -30,7 +39,9 @@ exports.getDashboardStats = async (req, res) => {
 
     const rawConf = parseFloat(avgAccuracy?.getDataValue('avgConfidence') || 0);
     const adjustedConf = (rawConf > 0 && rawConf <= 1) ? rawConf * 100 : rawConf;
-    const confidenceVal = adjustedConf > 0 ? `${adjustedConf.toFixed(1)}%` : '85.0%';
+    const confidenceVal = adjustedConf > 0
+  ? `${adjustedConf.toFixed(1)}%`
+  : '0.0%';
 
     const rawRecent = await Scan.findAll({
       limit: 5,

@@ -24,8 +24,8 @@ const AdminDashboard = () => {
           setLiveStats({
             totalScans: statsRes.data.stats.totalScans || statsRes.data.totalScans,
             activeUsers: statsRes.data.stats.totalUsers || statsRes.data.activeUsers,
-            commonDisease: statsRes.data.commonDisease || 'Healthy Tissue',
-            aiAccuracy: statsRes.data.aiAccuracy || '0.0%'
+           commonDisease: statsRes.data.stats.commonDisease,
+aiAccuracy: statsRes.data.stats.aiAccuracy
           });
         } else if (statsRes.data.success) {
           setLiveStats(statsRes.data);
