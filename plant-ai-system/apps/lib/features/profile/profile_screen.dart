@@ -113,16 +113,18 @@ Future<void> _saveProfileData() async {
       final fileName =
           'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-      await Supabase.instance.client.storage
-          .from('profiles')
-          .upload(
-            fileName,
-            _imageFile!,
-            fileOptions: const FileOptions(
-              upsert: true,
-            ),
-          );
+final bytes = await _imageFile!.readAsBytes();
 
+     await Supabase.instance.client.storage
+    .from('profiles')
+    .uploadBinary(
+      fileName,
+      bytes,
+      fileOptions: const FileOptions(
+        upsert: true,
+        contentType: 'image/jpeg',
+      ),
+    );
       finalImageUrl = Supabase.instance.client.storage
           .from('profiles')
           .getPublicUrl(fileName);
