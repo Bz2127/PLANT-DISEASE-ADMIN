@@ -89,11 +89,16 @@ router.put('/profile', userAuthMiddleware, async (req, res) => {
     const user = await User.findByPk(req.user.id);
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
+    // Update user fields from request body
     user.full_name = req.body.full_name || user.full_name;
     user.phone_number = req.body.phone_number || user.phone_number;
-    
     user.location = req.body.location || user.location;
     user.language_pref = req.body.language_pref || user.language_pref;
+
+    // Update the image URL if provided in the JSON body
+    if (req.body.profile_image) {
+      user.profile_image = req.body.profile_image;
+    }
 
     await user.save();
 
@@ -104,7 +109,8 @@ router.put('/profile', userAuthMiddleware, async (req, res) => {
         full_name: user.full_name,
         phone_number: user.phone_number,
         location: user.location,
-        language_pref: user.language_pref
+        language_pref: user.language_pref,
+        profile_image: user.profile_image // Return the new URL
       }
     });
   } catch (err) {
@@ -112,7 +118,6 @@ router.put('/profile', userAuthMiddleware, async (req, res) => {
     res.status(500).json({ msg: 'Server error updating profile' });
   }
 });
-
 router.get('/scans', userAuthMiddleware, async (req, res) => {
   try {
     const scans = await Scan.findAll({

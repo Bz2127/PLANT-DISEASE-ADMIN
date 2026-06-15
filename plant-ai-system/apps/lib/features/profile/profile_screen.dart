@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -73,20 +74,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _handleLogout() async {
     final prefs = await SharedPreferences.getInstance();
-    // Clear out user session states safely
     await prefs.remove('user_name');
     await prefs.remove('user_phone');
     await prefs.remove('user_location');
     await prefs.remove('user_lang');
     await prefs.remove('user_profile_image');
+    await prefs.remove('auth_token');
 
     if (mounted) {
-      // Safely navigate back to your application login route using GoRouter
       context.go('/login');
     }
   }
-
- Future<void> _saveProfileData() async {
+Future<void> _saveProfileData() async {
   if (_nameController.text.trim().isEmpty || _phoneController.text.trim().isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(_isAmharic ? "እባክዎን ሁሉንም መስኮች ይሙሉ" : "Please fill all required fields")),
@@ -96,27 +95,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   setState(() => _isSaving = true);
   final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('auth_token');
 
   try {
-    final url = Uri.parse('https://plant-disease-backend-yr3j.onrender.com/api/users/profile-update');
-    var request = http.MultipartRequest('POST', url);
+    String? finalImageUrl = _profileImageUrl;
 
-    // These keys now match your server.js (req.body) expectations
-    request.fields['phone_number'] = _phoneController.text.trim();
-    request.fields['full_name'] = _nameController.text.trim();
-    request.fields['location'] = _selectedLocation;       // Changed from 
-    request.fields['language_pref'] = _selectedLanguage; // Changed from app_localization
-
+    // 1. Upload new image to Supabase if selected
     if (_imageFile != null) {
-      request.files.add(await http.MultipartFile.fromPath(
-        'image',
-        _imageFile!.path,
-        contentType: MediaType('image', 'jpeg'),
-      ));
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final storage = Supabase.instance.client.storage.from('profiles');
+      await storage.upload(fileName, _imageFile!);
+      finalImageUrl = storage.getPublicUrl(fileName);
     }
 
-    var streamedResponse = await request.send();
-    var response = await http.Response.fromStream(streamedResponse);
+    // 2. Send JSON request to your server
+    final response = await http.put(
+      Uri.parse('https://plant-disease-backend-yr3j.onrender.com/api/users/profile'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'full_name': _nameController.text.trim(),
+        'phone_number': _phoneController.text.trim(),
+        'location': _selectedLocation,
+        'language_pref': _selectedLanguage,
+        'profile_image': finalImageUrl,
+      }),
+    );
 
     if (response.statusCode == 200) {
       final resData = json.decode(response.body);
@@ -159,6 +165,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isSaving = false);
   }
 }
+  
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -173,7 +180,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1B3022),
         elevation: 0,
-        // ✅ Added back navigation arrow using GoRouter context.pop()
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
@@ -186,7 +192,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _isAmharic ? "የእኔ መገለጫ" : "My Profile", 
           style: GoogleFonts.notoSans(color: Colors.white, fontWeight: FontWeight.bold)
         ),
-        // ✅ Added Trailing Logout action button
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
