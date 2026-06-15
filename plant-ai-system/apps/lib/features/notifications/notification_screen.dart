@@ -20,7 +20,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   Future<void> fetchNotifications() async {
     try {
-      final data = await DioClient.getNotifications();
+      final data = await DioClient().getNotifications();
       setState(() {
         notifications = data;
         loading = false;
