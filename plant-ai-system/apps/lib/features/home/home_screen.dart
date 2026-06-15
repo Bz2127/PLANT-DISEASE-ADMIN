@@ -21,6 +21,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _latestNotification;
   String? _profileImage;
 
+  bool hasNewNotification = false;
+
   @override
   void initState() {
     super.initState();
@@ -42,10 +44,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadLatestNotification() async {
     try {
-     final data = await DioClient().getNotifications();
+      final prefs = await SharedPreferences.getInstance();
+      final data = await DioClient().getNotifications();
+
       if (data.isNotEmpty) {
+        final latest = data.first;
+        final lastSeenId = prefs.getString('last_seen_notification_id');
+
         setState(() {
-          _latestNotification = data.first;
+          _latestNotification = latest;
+          hasNewNotification =
+              latest['id'].toString() != lastSeenId;
         });
       }
     } catch (e) {}
@@ -70,31 +79,6 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(size),
-
-                if (_latestNotification != null)
-                  Container(
-                    margin: const EdgeInsets.only(top: 15),
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1B3022),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.notifications, color: Colors.orange),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _isAmharic
-                                ? _latestNotification!['title_am'] ?? ''
-                                : _latestNotification!['title_en'] ?? '',
-                            style: const TextStyle(color: Colors.white),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
 
                 SizedBox(height: isSmallScreen ? 20 : 30),
                 _buildScanCard(context, size, isSmallScreen),
@@ -207,10 +191,44 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-        IconButton(
-          icon: const Icon(Icons.notifications, color: Colors.white),
-          onPressed: () => context.push('/notifications'),
+
+        Stack(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.notifications, color: Colors.white),
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+
+                if (_latestNotification != null) {
+                  await prefs.setString(
+                    'last_seen_notification_id',
+                    _latestNotification!['id'].toString(),
+                  );
+                }
+
+                setState(() {
+                  hasNewNotification = false;
+                });
+
+                context.push('/notifications');
+              },
+            ),
+            if (hasNewNotification)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
         ),
+
         IconButton(
           icon: const Icon(Icons.logout, color: Colors.grey, size: 20),
           onPressed: () async {
