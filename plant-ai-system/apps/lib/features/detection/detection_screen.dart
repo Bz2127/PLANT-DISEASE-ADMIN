@@ -19,6 +19,7 @@ class _DetectionScreenState extends State<DetectionScreen> {
   XFile? _pickedFile;
   Uint8List? _webImageBytes;
   final ImagePicker _picker = ImagePicker();
+
   bool _isProcessing = false;
   String _statusMessage = "Analyzing...";
 
@@ -26,7 +27,13 @@ class _DetectionScreenState extends State<DetectionScreen> {
     if (_isProcessing) return;
 
     try {
-      setState(() => _isProcessing = true);
+      if (mounted) {
+        setState(() {
+          _isProcessing = true;
+          _statusMessage = "Selecting image...";
+        });
+      }
+
       final pickedFile = await _picker.pickImage(
         source: source,
         maxWidth: 1080,
@@ -34,81 +41,152 @@ class _DetectionScreenState extends State<DetectionScreen> {
         imageQuality: 70,
       );
 
-      if (pickedFile != null) {
-        if (kIsWeb) {
-          final bytes = await pickedFile.readAsBytes();
+      if (pickedFile == null) {
+        if (mounted) {
+          setState(() => _isProcessing = false);
+        }
+        return;
+      }
+
+      if (kIsWeb) {
+        final bytes = await pickedFile.readAsBytes();
+
+        if (mounted) {
           setState(() {
             _webImageBytes = bytes;
             _pickedFile = pickedFile;
           });
-        } else {
-          setState(() => _pickedFile = pickedFile);
         }
-        await _proceedToAnalysis(pickedFile);
       } else {
-        setState(() => _isProcessing = false);
+        if (mounted) {
+          setState(() {
+            _pickedFile = pickedFile;
+          });
+        }
       }
+
+      await _proceedToAnalysis(pickedFile);
     } catch (e) {
       debugPrint("Error picking image: $e");
-      if (mounted) setState(() => _isProcessing = false);
+
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     }
   }
 
   Future<void> _proceedToAnalysis(XFile fileToAnalyze) async {
-    if (fileToAnalyze.path.isEmpty) return;
-
-    setState(() => _statusMessage = "Analyzing image...");
+    if (fileToAnalyze.path.isEmpty) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+      return;
+    }
 
     try {
+      if (mounted) {
+        setState(() {
+          _statusMessage = "Getting location...";
+        });
+      }
+
       Position? position;
+
       try {
-        LocationPermission permission = await Geolocator.checkPermission();
-        if (permission == LocationPermission.denied) {
-          permission = await Geolocator.requestPermission();
-        }
-        if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
-          position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
+        final bool serviceEnabled =
+            await Geolocator.isLocationServiceEnabled();
+
+        if (serviceEnabled) {
+          LocationPermission permission =
+              await Geolocator.checkPermission();
+
+          if (permission == LocationPermission.denied) {
+            permission = await Geolocator.requestPermission();
+          }
+
+          if (permission == LocationPermission.always ||
+              permission == LocationPermission.whileInUse) {
+            position = await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.medium,
+              timeLimit: const Duration(seconds: 5),
+            );
+          }
         }
       } catch (e) {
         debugPrint("Location error: $e");
       }
 
+      if (mounted) {
+        setState(() {
+          _statusMessage = "Uploading image...";
+        });
+      }
+
       final fileBytes = await fileToAnalyze.readAsBytes();
       final fileName = fileToAnalyze.name;
 
-      FormData formData = FormData.fromMap({
-        'image': MultipartFile.fromBytes(fileBytes, filename: fileName),
-        'latitude': position?.latitude?.toString() ?? '0.0',
-        'longitude': position?.longitude?.toString() ?? '0.0',
+      final FormData formData = FormData.fromMap({
+        'image': MultipartFile.fromBytes(
+          fileBytes,
+          filename: fileName,
+        ),
+        'latitude': position?.latitude.toString() ?? '0.0',
+        'longitude': position?.longitude.toString() ?? '0.0',
       });
+
+      if (mounted) {
+        setState(() {
+          _statusMessage = "Analyzing disease...";
+        });
+      }
 
       final response = await DioClient.instance.post(
         '/scans/predict-disease',
         data: formData,
-        options: Options(receiveTimeout: const Duration(seconds: 90)),
+        options: Options(
+          receiveTimeout: const Duration(seconds: 90),
+        ),
       );
 
-      if (response.statusCode == 200 && response.data != null && mounted) {
+      if (!mounted) return;
+
+      if (response.statusCode == 200 && response.data != null) {
         setState(() {
           _pickedFile = null;
           _webImageBytes = null;
         });
 
-        context.push('/result', extra: {
-          'imageUrl': '',
-          'analysisData': response.data,
-        });
+        context.push(
+          '/result',
+          extra: {
+            'imageUrl': '',
+            'analysisData': response.data,
+          },
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Analysis failed."),
+          ),
+        );
       }
     } catch (e) {
       debugPrint("Analysis Error: $e");
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to analyze. Please try again.")),
+          const SnackBar(
+            content: Text(
+              "Failed to analyze. Please try again.",
+            ),
+          ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() => _isProcessing = false);
+        setState(() {
+          _isProcessing = false;
+        });
       }
     }
   }
@@ -118,7 +196,9 @@ class _DetectionScreenState extends State<DetectionScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text("Scan Plant / ተክል ምርመራ"),
+        title: const Text(
+          "Scan Plant / ተክል ምርመራ",
+        ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
       ),
@@ -128,23 +208,38 @@ class _DetectionScreenState extends State<DetectionScreen> {
             child: _isProcessing
                 ? Center(
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisAlignment:
+                          MainAxisAlignment.center,
                       children: [
-                        const CircularProgressIndicator(color: Colors.green),
+                        const CircularProgressIndicator(
+                          color: Colors.green,
+                        ),
                         const SizedBox(height: 20),
-                        Text(_statusMessage, style: const TextStyle(color: Colors.white)),
+                        Text(
+                          _statusMessage,
+                          style: const TextStyle(
+                            color: Colors.white,
+                          ),
+                        ),
                       ],
                     ),
                   )
                 : _pickedFile != null
                     ? (kIsWeb
-                        ? Image.memory(_webImageBytes!, fit: BoxFit.contain)
-                        : Image.file(File(_pickedFile!.path), fit: BoxFit.contain))
+                        ? Image.memory(
+                            _webImageBytes!,
+                            fit: BoxFit.contain,
+                          )
+                        : Image.file(
+                            File(_pickedFile!.path),
+                            fit: BoxFit.contain,
+                          ))
                     : Center(
                         child: Icon(
                           Icons.camera_enhance,
                           size: 100,
-                          color: Colors.green.withOpacity(0.5),
+                          color:
+                              Colors.green.withOpacity(0.5),
                         ),
                       ),
           ),
@@ -152,11 +247,22 @@ class _DetectionScreenState extends State<DetectionScreen> {
             padding: const EdgeInsets.all(40),
             color: const Color(0xFF0D1B12),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment:
+                  MainAxisAlignment.spaceEvenly,
               children: [
-                _actionCircle(Icons.photo_library, () => _pickImage(ImageSource.gallery)),
-                _actionCircle(Icons.camera_alt, () => _pickImage(ImageSource.camera), isLarge: true),
-                _actionCircle(Icons.flash_on, () {}),
+                _actionCircle(
+                  Icons.photo_library,
+                  () => _pickImage(ImageSource.gallery),
+                ),
+                _actionCircle(
+                  Icons.camera_alt,
+                  () => _pickImage(ImageSource.camera),
+                  isLarge: true,
+                ),
+                _actionCircle(
+                  Icons.flash_on,
+                  () {},
+                ),
               ],
             ),
           ),
@@ -165,13 +271,22 @@ class _DetectionScreenState extends State<DetectionScreen> {
     );
   }
 
-  Widget _actionCircle(IconData icon, VoidCallback onTap, {bool isLarge = false}) {
+  Widget _actionCircle(
+    IconData icon,
+    VoidCallback onTap, {
+    bool isLarge = false,
+  }) {
     return GestureDetector(
       onTap: _isProcessing ? null : onTap,
       child: CircleAvatar(
         radius: isLarge ? 40 : 30,
-        backgroundColor: isLarge ? Colors.green : Colors.white10,
-        child: Icon(icon, color: Colors.white, size: isLarge ? 40 : 25),
+        backgroundColor:
+            isLarge ? Colors.green : Colors.white10,
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: isLarge ? 40 : 25,
+        ),
       ),
     );
   }
