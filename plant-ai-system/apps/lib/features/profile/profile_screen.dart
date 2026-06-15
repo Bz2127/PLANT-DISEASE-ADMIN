@@ -6,9 +6,10 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
+//import 'package:http_parser/http_parser.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -86,36 +87,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 Future<void> _saveProfileData() async {
-  if (_nameController.text.trim().isEmpty || _phoneController.text.trim().isEmpty) {
+  if (_nameController.text.trim().isEmpty ||
+      _phoneController.text.trim().isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_isAmharic ? "እባክዎን ሁሉንም መስኮች ይሙሉ" : "Please fill all required fields")),
+      SnackBar(
+        content: Text(
+          _isAmharic
+              ? "እባክዎን ሁሉንም መስኮች ይሙሉ"
+              : "Please fill all required fields",
+        ),
+      ),
     );
     return;
   }
 
   setState(() => _isSaving = true);
+
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('auth_token');
 
   try {
     String? finalImageUrl = _profileImageUrl;
 
-    // 1. Upload new image to Supabase if selected
     if (_imageFile != null) {
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final storage = Supabase.instance.client.storage.from('profiles');
-      await storage.upload(fileName, _imageFile!);
-      finalImageUrl = storage.getPublicUrl(fileName);
+      final fileName =
+          'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      await Supabase.instance.client.storage
+          .from('profiles')
+          .upload(
+            fileName,
+            _imageFile!,
+            fileOptions: const FileOptions(
+              upsert: true,
+            ),
+          );
+
+      finalImageUrl = Supabase.instance.client.storage
+          .from('profiles')
+          .getPublicUrl(fileName);
     }
 
-    // 2. Send JSON request to your server
     final response = await http.put(
-      Uri.parse('https://plant-disease-backend-yr3j.onrender.com/api/users/profile'),
+      Uri.parse(
+        'https://plant-disease-backend-yr3j.onrender.com/api/users/profile',
+      ),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-      body: json.encode({
+      body: jsonEncode({
         'full_name': _nameController.text.trim(),
         'phone_number': _phoneController.text.trim(),
         'location': _selectedLocation,
@@ -125,47 +146,89 @@ Future<void> _saveProfileData() async {
     );
 
     if (response.statusCode == 200) {
-      final resData = json.decode(response.body);
-      String? newImgUrl = resData['user']['profile_image'];
+      final resData = jsonDecode(response.body);
 
-      await prefs.setString('user_name', _nameController.text.trim());
-      await prefs.setString('user_phone', _phoneController.text.trim());
-      await prefs.setString('user_location', _selectedLocation);
-      await prefs.setString('user_lang', _selectedLanguage);
+      String? newImgUrl;
+
+      if (resData['user'] != null &&
+          resData['user']['profile_image'] != null) {
+        newImgUrl = resData['user']['profile_image'];
+      } else {
+        newImgUrl = finalImageUrl;
+      }
+
+      await prefs.setString(
+        'user_name',
+        _nameController.text.trim(),
+      );
+
+      await prefs.setString(
+        'user_phone',
+        _phoneController.text.trim(),
+      );
+
+      await prefs.setString(
+        'user_location',
+        _selectedLocation,
+      );
+
+      await prefs.setString(
+        'user_lang',
+        _selectedLanguage,
+      );
+
       if (newImgUrl != null) {
-        await prefs.setString('user_profile_image', newImgUrl);
+        await prefs.setString(
+          'user_profile_image',
+          newImgUrl,
+        );
       }
 
       setState(() {
-        _isAmharic = (_selectedLanguage == 'Amharic');
-        if (newImgUrl != null) _profileImageUrl = newImgUrl;
+        _isAmharic = _selectedLanguage == 'Amharic';
+        _profileImageUrl = newImgUrl;
+        _imageFile = null;
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: const Color(0xFF4CAF50),
-            content: Text(_isAmharic ? "መገለጫዎ በተሳካ ሁኔታ ተቀይሯል" : "Profile updated successfully!"),
+            content: Text(
+              _isAmharic
+                  ? "መገለጫዎ በተሳካ ሁኔታ ተቀይሯል"
+                  : "Profile updated successfully!",
+            ),
           ),
         );
       }
     } else {
-      throw Exception("Server Error: ${response.statusCode}");
+      debugPrint(response.body);
+      throw Exception(
+        'Server Error: ${response.statusCode}',
+      );
     }
   } catch (e) {
+    debugPrint('PROFILE SAVE ERROR: $e');
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFB38B4D),
-          content: Text(_isAmharic ? "የመረቡ ግንኙነት አልተሳካም" : "Network error. Please try again."),
+          content: Text(
+            _isAmharic
+                ? "የመረቡ ግንኙነት አልተሳካም"
+                : "Network error. Please try again.",
+          ),
         ),
       );
     }
   } finally {
-    setState(() => _isSaving = false);
+    if (mounted) {
+      setState(() => _isSaving = false);
+    }
   }
-}
-  
+} 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -209,10 +272,11 @@ Future<void> _saveProfileData() async {
               onTap: _pickImage,
               child: CircleAvatar(
                 radius: 55,
-                backgroundColor: const Color(0xFF1B3022),
-                backgroundImage: _imageFile != null 
-                    ? FileImage(_imageFile!) 
-                    : (_profileImageUrl != null ? NetworkImage('https://plant-disease-backend-yr3j.onrender.com$_profileImageUrl') : null) as ImageProvider?,
+   backgroundImage: _imageFile != null
+    ? FileImage(_imageFile!)
+    : (_profileImageUrl != null
+        ? NetworkImage(_profileImageUrl!)
+        : null),
                 child: (_imageFile == null && _profileImageUrl == null)
                     ? const Icon(Icons.camera_alt, size: 40, color: Color(0xFF4CAF50))
                     : null,
