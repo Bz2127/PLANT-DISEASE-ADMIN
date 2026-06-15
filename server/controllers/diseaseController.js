@@ -154,9 +154,10 @@ exports.getDiseases = async (req, res) => {
       include: [{ model: Crop, attributes: ['crop_name'] }]
     });
 
-    const localizedDiseases = diseases.map(item =>
-      formatLocalizedData(item)
-    );
+   return res.status(200).json({
+  success: true,
+  data: diseases
+});
 
     return res.status(200).json({
       success: true,
