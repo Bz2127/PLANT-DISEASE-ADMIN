@@ -84,8 +84,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         Expanded(
                           child: Text(
                             _isAmharic
-                                ? _latestNotification!['title_am']
-                                : _latestNotification!['title_en'],
+                                ? _latestNotification!['title_am'] ?? ''
+                                : _latestNotification!['title_en'] ?? '',
                             style: const TextStyle(color: Colors.white),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -169,10 +169,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHeader(Size size) {
     return Row(
       children: [
-        const CircleAvatar(
-          radius: 25,
-          backgroundColor: Color(0xFF1B3022),
-          child: Icon(Icons.person, color: Color(0xFF4CAF50)),
+        GestureDetector(
+          onTap: () => context.push('/profile'),
+          child: const CircleAvatar(
+            radius: 25,
+            backgroundColor: Color(0xFF1B3022),
+            backgroundImage: AssetImage('assets/images/profile.jpg'),
+          ),
         ),
         const SizedBox(width: 15),
         Expanded(
