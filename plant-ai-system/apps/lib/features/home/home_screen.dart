@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// Import your screen to allow direct dynamic fallback rendering if GoRouter paths shift
 import '../advisory/advisory_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,7 +18,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String _farmerPhone = "";
   bool _isAmharic = false;
   String _latestScanId = "0";
-  String? _profileImageUrl;
 
   @override
   void initState() {
@@ -31,8 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _farmerName = prefs.getString('user_name') ?? "Farmer (አራሽ)";
       _farmerPhone = prefs.getString('user_phone') ?? "";
-      _profileImageUrl = prefs.getString('user_profile_image');
       _isAmharic = (currentLang == 'Amharic' || currentLang == 'am');
+      // If no scans exist yet, this string defaults to "0" cleanly
       _latestScanId = prefs.getString('latest_scan_id') ?? "0";
     });
   }
@@ -106,23 +106,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () => context.push('/history'),
               ),
               const SizedBox(width: 40),
-              IconButton(
-                icon: const Icon(Icons.tips_and_updates, color: Colors.grey),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AdvisoryScreen(scanId: _latestScanId),
-                    ),
-                  );
-                },
-              ),
+             IconButton(
+  icon: const Icon(Icons.notifications, color: Colors.grey),
+  onPressed: () {
+    context.push('/notifications');
+  },
+),
               IconButton(
                 icon: const Icon(Icons.person, color: Colors.grey),
-                onPressed: () async {
-                  await context.push('/profile');
-                  _loadFarmerProfile();
-                },
+                onPressed: () => context.push('/profile'),
               ),
             ],
           ),
@@ -134,49 +126,32 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHeader(Size size) {
     return Row(
       children: [
-        GestureDetector(
-          onTap: () async {
-            await context.push('/profile');
-            _loadFarmerProfile();
-          },
-          child: CircleAvatar(
-            radius: 25,
-            backgroundColor: const Color(0xFF1B3022),
-            backgroundImage: _profileImageUrl != null
-                ? NetworkImage(_profileImageUrl!)
-                : null,
-            child: _profileImageUrl == null
-                ? const Icon(Icons.person, color: Color(0xFF4CAF50))
-                : null,
-          ),
+        const CircleAvatar(
+          radius: 25,
+          backgroundColor: Color(0xFF1B3022),
+          child: Icon(Icons.person, color: Color(0xFF4CAF50)),
         ),
         const SizedBox(width: 15),
         Expanded(
-          child: GestureDetector(
-            onTap: () async {
-              await context.push('/profile');
-              _loadFarmerProfile();
-            },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _farmerName,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.notoSans(
-                    fontSize: size.width > 400 ? 18 : 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _farmerName,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.notoSans(
+                  fontSize: size.width > 400 ? 18 : 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
-                Text(
-                  _isAmharic 
-                      ? "ጥሩ የመትከያ ቀን" 
-                      : "Good day for planting",
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
-            ),
+              ),
+              Text(
+                _isAmharic 
+                    ? "ጥሩ የመትከያ ቀን" 
+                    : "Good day for planting",
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ],
           ),
         ),
         IconButton(

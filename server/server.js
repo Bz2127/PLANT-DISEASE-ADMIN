@@ -43,6 +43,9 @@ const uploadScan = multer({
   limits: { fileSize: 5 * 1024 * 1024 } 
 });
 
+const notificationRoutes = require('./routes/notificationRoutes');
+
+app.use('/api/admin', notificationRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api/admin', adminAuthRoutes); 
