@@ -6,8 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-//import 'package:http_parser/http_parser.dart';
-
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -24,7 +23,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  
+
   String _selectedLocation = "Oromia";
   String _selectedLanguage = "English";
   String? _profileImageUrl;
@@ -52,7 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _nameController.text = prefs.getString('user_name') ?? "";
       _phoneController.text = prefs.getString('user_phone') ?? "";
       _profileImageUrl = prefs.getString('user_profile_image');
-      
+
       String savedLoc = prefs.getString('user_location') ?? "Oromia";
       if (_regions.contains(savedLoc)) _selectedLocation = savedLoc;
 
@@ -86,151 +85,164 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context.go('/login');
     }
   }
-Future<void> _saveProfileData() async {
-  if (_nameController.text.trim().isEmpty ||
-      _phoneController.text.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _isAmharic
-              ? "እባክዎን ሁሉንም መስኮች ይሙሉ"
-              : "Please fill all required fields",
+
+  Future<void> _saveProfileData() async {
+    if (_nameController.text.trim().isEmpty ||
+        _phoneController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isAmharic
+                ? "እባክዎን ሁሉንም መስኮች ይሙሉ"
+                : "Please fill all required fields",
+          ),
         ),
-      ),
-    );
-    return;
-  }
-
-  setState(() => _isSaving = true);
-
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('auth_token');
-
-  try {
-    String? finalImageUrl = _profileImageUrl;
-
-    if (_imageFile != null) {
-      final fileName =
-          'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-final bytes = await _imageFile!.readAsBytes();
-
-     await Supabase.instance.client.storage
-    .from('profiles')
-    .uploadBinary(
-      fileName,
-      bytes,
-      fileOptions: const FileOptions(
-        upsert: true,
-        contentType: 'image/jpeg',
-      ),
-    );
-      finalImageUrl = Supabase.instance.client.storage
-          .from('profiles')
-          .getPublicUrl(fileName);
+      );
+      return;
     }
 
-    final response = await http.put(
-      Uri.parse(
-        'https://plant-disease-backend-yr3j.onrender.com/api/users/profile',
-      ),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'full_name': _nameController.text.trim(),
-        'phone_number': _phoneController.text.trim(),
-        'location': _selectedLocation,
-        'language_pref': _selectedLanguage,
-        'profile_image': finalImageUrl,
-      }),
-    );
+    setState(() => _isSaving = true);
 
-    if (response.statusCode == 200) {
-      final resData = jsonDecode(response.body);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
 
-      String? newImgUrl;
+    try {
+      String? finalImageUrl = _profileImageUrl;
 
-      if (resData['user'] != null &&
-          resData['user']['profile_image'] != null) {
-        newImgUrl = resData['user']['profile_image'];
-      } else {
-        newImgUrl = finalImageUrl;
+      if (_imageFile != null) {
+        final fileName =
+            'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+        final compressedBytes = await FlutterImageCompress.compressWithFile(
+          _imageFile!.path,
+          quality: 50,
+          minWidth: 800,
+          minHeight: 800,
+        );
+
+        if (compressedBytes == null) {
+          throw Exception("Compression failed");
+        }
+
+        await Supabase.instance.client.storage
+            .from('profiles')
+            .uploadBinary(
+              fileName,
+              compressedBytes,
+              fileOptions: const FileOptions(
+                upsert: true,
+                contentType: 'image/jpeg',
+              ),
+            )
+            .timeout(const Duration(seconds: 30));
+
+        finalImageUrl = Supabase.instance.client.storage
+            .from('profiles')
+            .getPublicUrl(fileName);
       }
 
-      await prefs.setString(
-        'user_name',
-        _nameController.text.trim(),
+      final response = await http.put(
+        Uri.parse(
+          'https://plant-disease-backend-yr3j.onrender.com/api/users/profile',
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'full_name': _nameController.text.trim(),
+          'phone_number': _phoneController.text.trim(),
+          'location': _selectedLocation,
+          'language_pref': _selectedLanguage,
+          'profile_image': finalImageUrl,
+        }),
       );
 
-      await prefs.setString(
-        'user_phone',
-        _phoneController.text.trim(),
-      );
+      if (response.statusCode == 200) {
+        final resData = jsonDecode(response.body);
 
-      await prefs.setString(
-        'user_location',
-        _selectedLocation,
-      );
+        String? newImgUrl;
 
-      await prefs.setString(
-        'user_lang',
-        _selectedLanguage,
-      );
+        if (resData['user'] != null &&
+            resData['user']['profile_image'] != null) {
+          newImgUrl = resData['user']['profile_image'];
+        } else {
+          newImgUrl = finalImageUrl;
+        }
 
-      if (newImgUrl != null) {
         await prefs.setString(
-          'user_profile_image',
-          newImgUrl,
+          'user_name',
+          _nameController.text.trim(),
+        );
+
+        await prefs.setString(
+          'user_phone',
+          _phoneController.text.trim(),
+        );
+
+        await prefs.setString(
+          'user_location',
+          _selectedLocation,
+        );
+
+        await prefs.setString(
+          'user_lang',
+          _selectedLanguage,
+        );
+
+        if (newImgUrl != null) {
+          await prefs.setString(
+            'user_profile_image',
+            newImgUrl,
+          );
+        }
+
+        setState(() {
+          _isAmharic = _selectedLanguage == 'Amharic';
+          _profileImageUrl = newImgUrl;
+          _imageFile = null;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: const Color(0xFF4CAF50),
+              content: Text(
+                _isAmharic
+                    ? "መገለጫዎ በተሳካ ሁኔታ ተቀይሯል"
+                    : "Profile updated successfully!",
+              ),
+            ),
+          );
+        }
+      } else {
+        debugPrint(response.body);
+        throw Exception(
+          'Server Error: ${response.statusCode}',
         );
       }
-
-      setState(() {
-        _isAmharic = _selectedLanguage == 'Amharic';
-        _profileImageUrl = newImgUrl;
-        _imageFile = null;
-      });
+    } catch (e) {
+      debugPrint('PROFILE SAVE ERROR: $e');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: const Color(0xFF4CAF50),
+            backgroundColor: const Color(0xFFB38B4D),
             content: Text(
               _isAmharic
-                  ? "መገለጫዎ በተሳካ ሁኔታ ተቀይሯል"
-                  : "Profile updated successfully!",
+                  ? "የመረቡ ግንኙነት አልተሳካም"
+                  : "Network error. Please try again.",
             ),
           ),
         );
       }
-    } else {
-      debugPrint(response.body);
-      throw Exception(
-        'Server Error: ${response.statusCode}',
-      );
-    }
-  } catch (e) {
-    debugPrint('PROFILE SAVE ERROR: $e');
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFB38B4D),
-          content: Text(
-            _isAmharic
-                ? "የመረቡ ግንኙነት አልተሳካም"
-                : "Network error. Please try again.",
-          ),
-        ),
-      );
-    }
-  } finally {
-    if (mounted) {
-      setState(() => _isSaving = false);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
-} 
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -254,8 +266,8 @@ final bytes = await _imageFile!.readAsBytes();
           },
         ),
         title: Text(
-          _isAmharic ? "የእኔ መገለጫ" : "My Profile", 
-          style: GoogleFonts.notoSans(color: Colors.white, fontWeight: FontWeight.bold)
+          _isAmharic ? "የእኔ መገለጫ" : "My Profile",
+          style: GoogleFonts.notoSans(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
@@ -274,11 +286,11 @@ final bytes = await _imageFile!.readAsBytes();
               onTap: _pickImage,
               child: CircleAvatar(
                 radius: 55,
-   backgroundImage: _imageFile != null
-    ? FileImage(_imageFile!)
-    : (_profileImageUrl != null
-        ? NetworkImage(_profileImageUrl!)
-        : null),
+                backgroundImage: _imageFile != null
+                    ? FileImage(_imageFile!)
+                    : (_profileImageUrl != null
+                        ? NetworkImage(_profileImageUrl!)
+                        : null),
                 child: (_imageFile == null && _profileImageUrl == null)
                     ? const Icon(Icons.camera_alt, size: 40, color: Color(0xFF4CAF50))
                     : null,
@@ -325,7 +337,12 @@ final bytes = await _imageFile!.readAsBytes();
         value: value,
         dropdownColor: const Color(0xFF1B3022),
         style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(labelText: _isAmharic ? labelAm : labelEn, labelStyle: const TextStyle(color: Colors.grey), prefixIcon: Icon(icon, color: const Color(0xFF4CAF50)), border: InputBorder.none),
+        decoration: InputDecoration(
+          labelText: _isAmharic ? labelAm : labelEn,
+          labelStyle: const TextStyle(color: Colors.grey),
+          prefixIcon: Icon(icon, color: const Color(0xFF4CAF50)),
+          border: InputBorder.none,
+        ),
         items: items.map((String item) => DropdownMenuItem<String>(value: item, child: Text(item))).toList(),
         onChanged: onChanged,
       ),
@@ -339,9 +356,9 @@ class WidgetKeyframeButton extends StatelessWidget {
   final VoidCallback onSave;
 
   const WidgetKeyframeButton({
-    super.key, 
-    required this.isSaving, 
-    required this.isAmharic, 
+    super.key,
+    required this.isSaving,
+    required this.isAmharic,
     required this.onSave
   });
 
@@ -356,9 +373,9 @@ class WidgetKeyframeButton extends StatelessWidget {
           backgroundColor: const Color(0xFF4CAF50),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))
         ),
-        child: isSaving 
-          ? const CircularProgressIndicator(color: Colors.white)
-          : Text(isAmharic ? "ለውጦችን አስቀምጥ" : "Save Changes", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        child: isSaving
+            ? const CircularProgressIndicator(color: Colors.white)
+            : Text(isAmharic ? "ለውጦችን አስቀምጥ" : "Save Changes", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
       ),
     );
   }
