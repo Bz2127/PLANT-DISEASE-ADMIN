@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// Import your screen to allow direct dynamic fallback rendering if GoRouter paths shift
+import '../../core/api/dio_client.dart';
 import '../advisory/advisory_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,11 +18,13 @@ class _HomeScreenState extends State<HomeScreen> {
   String _farmerPhone = "";
   bool _isAmharic = false;
   String _latestScanId = "0";
+  Map<String, dynamic>? _latestNotification;
 
   @override
   void initState() {
     super.initState();
     _loadFarmerProfile();
+    _loadLatestNotification();
   }
 
   Future<void> _loadFarmerProfile() async {
@@ -32,9 +34,19 @@ class _HomeScreenState extends State<HomeScreen> {
       _farmerName = prefs.getString('user_name') ?? "Farmer (አራሽ)";
       _farmerPhone = prefs.getString('user_phone') ?? "";
       _isAmharic = (currentLang == 'Amharic' || currentLang == 'am');
-      // If no scans exist yet, this string defaults to "0" cleanly
       _latestScanId = prefs.getString('latest_scan_id') ?? "0";
     });
+  }
+
+  Future<void> _loadLatestNotification() async {
+    try {
+      final data = await DioClient().getNotifications();
+      if (data.isNotEmpty) {
+        setState(() {
+          _latestNotification = data.first;
+        });
+      }
+    } catch (e) {}
   }
 
   @override
@@ -56,6 +68,32 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(size),
+
+                if (_latestNotification != null)
+                  Container(
+                    margin: const EdgeInsets.only(top: 15),
+                    padding: const EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1B3022),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.notifications, color: Colors.orange),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _isAmharic
+                                ? _latestNotification!['title_am']
+                                : _latestNotification!['title_en'],
+                            style: const TextStyle(color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 SizedBox(height: isSmallScreen ? 20 : 30),
                 _buildScanCard(context, size, isSmallScreen),
                 SizedBox(height: isSmallScreen ? 20 : 25),
@@ -106,12 +144,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () => context.push('/history'),
               ),
               const SizedBox(width: 40),
-             IconButton(
-  icon: const Icon(Icons.notifications, color: Colors.grey),
-  onPressed: () {
-    context.push('/notifications');
-  },
-),
+              IconButton(
+                icon: const Icon(Icons.tips_and_updates, color: Colors.grey),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AdvisoryScreen(scanId: _latestScanId),
+                    ),
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.person, color: Colors.grey),
                 onPressed: () => context.push('/profile'),

@@ -39,7 +39,7 @@ class DioClient {
 
   static Dio get instance => _dio;
 
-  Future<List<dynamic>> getNotifications() async {
+  static Future<List<dynamic>> getNotifications() async {
     final response = await _dio.get('/admin/notifications');
 
     if (response.statusCode == 200) {
