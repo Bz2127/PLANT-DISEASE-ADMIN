@@ -132,7 +132,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
       itemBuilder: (context, index) {
         final item = scanHistory[index];
         final String date = item['createdAt'] != null ? item['createdAt'].toString().substring(0, 10) : "N/A";
-        final String diseaseName = item['Disease']?['disease_name'] ?? "Unknown";
+        final String diseaseName =
+    item['disease']?['disease_name'] ??
+    item['Disease']?['disease_name'] ??
+    item['Disease']?['display_name_en'] ??
+    item['disease']?['display_name_en'] ??
+    item['raw_ai_result'] ??
+    "Unknown";
         final bool isHealthy = diseaseName.toLowerCase().contains('healthy');
 
         return Container(
