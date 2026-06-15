@@ -111,8 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (_imageFile != null) {
         final fileName =
-            'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
+            'profiles/profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final compressedBytes = await FlutterImageCompress.compressWithFile(
           _imageFile!.path,
           quality: 50,
@@ -125,7 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
 
         await Supabase.instance.client.storage
-            .from('profiles')
+            .from('scan-images')
             .uploadBinary(
               fileName,
               compressedBytes,
@@ -137,7 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             .timeout(const Duration(seconds: 30));
 
         finalImageUrl = Supabase.instance.client.storage
-            .from('profiles')
+            .from('scan-images')
             .getPublicUrl(fileName);
       }
 
