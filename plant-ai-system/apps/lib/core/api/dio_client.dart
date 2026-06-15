@@ -28,7 +28,7 @@ class DioClient {
           options.headers['Authorization'] = 'Bearer $token';
         }
         
-        final appLang = prefs.getString('user_lang') ?? 'en';
+       final appLang = prefs.getString('user_lang') == 'Amharic' ? 'am' : 'en';
         
         options.queryParameters['lang'] = appLang;
 
@@ -40,7 +40,7 @@ class DioClient {
   static Dio get instance => _dio;
 
   Future<List<dynamic>> getNotifications() async {
-     final response = await _dio.get('/notifications');
+     final response = await _dio.get('/admin/notifications');
 
     if (response.statusCode == 200) {
       return response.data['data'];
