@@ -19,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isAmharic = false;
   String _latestScanId = "0";
   Map<String, dynamic>? _latestNotification;
+  String? _profileImage;
 
   @override
   void initState() {
@@ -35,12 +36,13 @@ class _HomeScreenState extends State<HomeScreen> {
       _farmerPhone = prefs.getString('user_phone') ?? "";
       _isAmharic = (currentLang == 'Amharic' || currentLang == 'am');
       _latestScanId = prefs.getString('latest_scan_id') ?? "0";
+      _profileImage = prefs.getString('user_profile_image');
     });
   }
 
   Future<void> _loadLatestNotification() async {
     try {
-      final data = await DioClient().getNotifications();
+     final data = await DioClient().getNotifications();
       if (data.isNotEmpty) {
         setState(() {
           _latestNotification = data.first;
@@ -171,10 +173,15 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         GestureDetector(
           onTap: () => context.push('/profile'),
-          child: const CircleAvatar(
+          child: CircleAvatar(
             radius: 25,
-            backgroundColor: Color(0xFF1B3022),
-            backgroundImage: AssetImage('assets/images/profile.jpg'),
+            backgroundColor: const Color(0xFF1B3022),
+            backgroundImage: _profileImage != null
+                ? NetworkImage(_profileImage!)
+                : null,
+            child: _profileImage == null
+                ? const Icon(Icons.person, color: Color(0xFF4CAF50))
+                : null,
           ),
         ),
         const SizedBox(width: 15),
@@ -199,6 +206,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.notifications, color: Colors.white),
+          onPressed: () => context.push('/notifications'),
         ),
         IconButton(
           icon: const Icon(Icons.logout, color: Colors.grey, size: 20),
