@@ -72,48 +72,45 @@ exports.addDisease = async (req, res) => {
       });
     }
 
-    if (existingDisease) {
-  let image_url = existingDisease.image_url;
-
-  if (req.file) {
-    image_url = await uploadImageToSupabase(req.file);
-  }
-
-  await existingDisease.update({
-    crop_id: Number(crop_id),
-    status: status || existingDisease.status,
-    display_name_en,
-    display_name_am,
-    description_en,
-    description_am,
-    symptoms_en,
-    symptoms_am,
-    causes_en,
-    causes_am,
-    treatment_organic_en,
-    treatment_organic_am,
-    treatment_chemical_en,
-    treatment_chemical_am,
-    prevention_tips_en,
-    prevention_tips_am,
-    image_url
-  });
-
-  const updated = await Disease.findByPk(existingDisease.id, {
-    include: [{ model: Crop, attributes: ['crop_name'] }]
-  });
-
-  return res.status(200).json({
-    success: true,
-    message: "Disease updated successfully",
-    data: updated
-  });
-}
+    const existingDisease = await Disease.findOne({
+      where: { disease_name: disease_name.trim() }
+    });
 
     if (existingDisease) {
-      return res.status(409).json({
-        success: false,
-        message: 'Disease already exists in database'
+      let image_url = existingDisease.image_url;
+
+      if (req.file) {
+        image_url = await uploadImageToSupabase(req.file);
+      }
+
+      await existingDisease.update({
+        crop_id: Number(crop_id),
+        status: status || existingDisease.status,
+        display_name_en,
+        display_name_am,
+        description_en,
+        description_am,
+        symptoms_en,
+        symptoms_am,
+        causes_en,
+        causes_am,
+        treatment_organic_en,
+        treatment_organic_am,
+        treatment_chemical_en,
+        treatment_chemical_am,
+        prevention_tips_en,
+        prevention_tips_am,
+        image_url
+      });
+
+      const updated = await Disease.findByPk(existingDisease.id, {
+        include: [{ model: Crop, attributes: ['crop_name'] }]
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Disease updated successfully",
+        data: updated
       });
     }
 
@@ -186,14 +183,9 @@ exports.getDiseases = async (req, res) => {
       include: [{ model: Crop, attributes: ['crop_name'] }]
     });
 
-   return res.status(200).json({
-  success: true,
-  data: diseases
-});
-
     return res.status(200).json({
       success: true,
-      data: localizedDiseases
+      data: diseases
     });
 
   } catch (err) {
@@ -214,12 +206,7 @@ exports.getAdvisoryByScanId = async (req, res) => {
     if (scanId === '0' || scanId === 'latest_id') {
       scan = await Scan.findOne({
         order: [['id', 'DESC']],
-        include: [
-          {
-            model: Disease,
-            required: true
-          }
-        ]
+        include: [{ model: Disease, required: true }]
       });
     } else {
       scan = await Scan.findByPk(scanId, {
