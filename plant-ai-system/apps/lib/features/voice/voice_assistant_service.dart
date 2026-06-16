@@ -24,16 +24,14 @@ class VoiceAssistantService {
           await Permission.microphone.request();
 
       if (!permissionStatus.isGranted) {
-        debugPrint(
-          "Microphone permission denied by user during voice service initialization.",
-        );
+        debugPrint("Microphone permission denied.");
         _isSpeechAvailable = false;
         return;
       }
 
       _isSpeechAvailable = await _speechToText.initialize(
-        onError: (val) => debugPrint('STT Error tracing: $val'),
-        onStatus: (val) => debugPrint('STT Status tracking: $val'),
+        onError: (val) => debugPrint('STT Error: $val'),
+        onStatus: (val) => debugPrint('STT Status: $val'),
       );
 
       final Locale currentLocale = Localizations.localeOf(context);
@@ -54,131 +52,98 @@ class VoiceAssistantService {
 
       _isInitialized = true;
     } catch (e) {
-      debugPrint(
-        "Voice Hardware Engine failed to initialize safely: $e",
-      );
+      debugPrint("Voice init failed: $e");
     }
   }
 
-  Future<void> speak(
-    String text, {
-    String? forceLanguageCode,
-  }) async {
+  Future<void> speak(String text, {String? forceLanguageCode}) async {
     if (text.isEmpty) return;
 
     try {
-      String targetLang = forceLanguageCode ?? "en-US";
-      String ttsLang = targetLang == 'am' ? "am-ET" : "en-US";
+      final lang = forceLanguageCode ?? "en";
 
-      bool isSupported = _supportedLanguages.contains(ttsLang);
+      final ttsLang = lang == 'am' ? "am-ET" : "en-US";
 
-      if (isSupported) {
+      if (_supportedLanguages.contains(ttsLang)) {
         await _flutterTts.setLanguage(ttsLang);
       } else {
-        debugPrint(
-          "Amharic voice pack missing, falling back to English.",
-        );
         await _flutterTts.setLanguage("en-US");
       }
 
-      await _flutterTts.setSpeechRate(
-        targetLang == 'am' ? 0.4 : 0.5,
-      );
-
+      await _flutterTts.setSpeechRate(lang == 'am' ? 0.4 : 0.5);
       await _flutterTts.speak(text);
     } catch (e) {
       debugPrint("TTS Error: $e");
     }
   }
 
-  void startListening({
+  Future<void> startListening({
     required BuildContext context,
     required Function(String) onResult,
     required Function(bool) onListeningStateChanged,
   }) async {
     try {
-      PermissionStatus status = await Permission.microphone.status;
+      var status = await Permission.microphone.status;
 
-      if (status.isDenied || status.isPermanentlyDenied) {
+      if (!status.isGranted) {
         status = await Permission.microphone.request();
       }
 
       if (!status.isGranted) {
-        debugPrint(
-          "Voice action skipped: Audio stream tracking is blocked due to missing permissions.",
-        );
-
         onListeningStateChanged(false);
-
-        if (status.isPermanentlyDenied) {
-          await openAppSettings();
-        }
-
         return;
       }
 
       if (!_isSpeechAvailable) {
         await initVoice(context);
+      }
 
-        if (!_isSpeechAvailable) {
-          onListeningStateChanged(false);
-          return;
-        }
+      if (!_isSpeechAvailable) {
+        onListeningStateChanged(false);
+        return;
       }
 
       final Locale currentLocale = Localizations.localeOf(context);
 
       final String activeLocaleId =
-          currentLocale.languageCode == 'am'
-              ? "am_ET"
-              : "en_US";
+          currentLocale.languageCode == 'am' ? "am_ET" : "en_US";
 
       onListeningStateChanged(true);
 
       await _speechToText.listen(
         onResult: (result) {
-          final String command =
-              result.recognizedWords.trim().toLowerCase();
+          final command = result.recognizedWords.trim().toLowerCase();
 
           if (result.finalResult) {
             onListeningStateChanged(false);
+
             _processCommand(
               context,
               command,
               currentLocale.languageCode,
             );
+
             onResult(command);
           }
         },
         localeId: activeLocaleId,
         cancelOnError: true,
-        listenFor: const Duration(seconds: 15),
+        listenFor: const Duration(seconds: 20),
         pauseFor: const Duration(seconds: 4),
       );
     } catch (e) {
       onListeningStateChanged(false);
-
-      debugPrint(
-        "Microphone active recording loop failed to hook stream listener: $e",
-      );
+      debugPrint("Voice error: $e");
     }
   }
 
   Future<void> stopListening() async {
-    try {
-      await _speechToText.stop();
-    } catch (e) {
-      debugPrint(
-        "Failed to execute shutdown on underlying hardware layout: $e",
-      );
-    }
+    await _speechToText.stop();
   }
 
   Future<void> dispose() async {
-    try {
-      await _speechToText.stop();
-      await _flutterTts.stop();
-    } catch (_) {}
+    await _speechToText.stop();
+    await _flutterTts.stop();
   }
 
   void _processCommand(
@@ -188,75 +153,59 @@ class VoiceAssistantService {
   ) {
     if (!context.mounted || command.isEmpty) return;
 
-    final bool isAmharic = languageCode == 'am';
+    final isAmharic = languageCode == 'am';
 
-    if (command.contains("መርምር") ||
-        command.contains("አዲስ") ||
-        command.contains("scan") ||
-        command.contains("detection") ||
-        command.contains("detect")) {
-      final String alertText = isAmharic
-          ? "ምርመራ እየጀመርኩ ነው። ቅጠሉን ያሳዩ።"
-          : "Starting camera plant disease detection scan.";
+    final cmd = command.toLowerCase();
 
+    bool has(List<String> words) {
+      return words.any((w) => cmd.contains(w));
+    }
+
+    if (has(["scan", "detect", "detection", "መርምር", "መተንተን"])) {
       speak(
-        alertText,
+        isAmharic
+            ? "ምርመራ እየጀመርኩ ነው"
+            : "Starting scan",
         forceLanguageCode: languageCode,
       );
 
       context.go('/detection');
-    } else if (command.contains("ታሪክ") ||
-        command.contains("ማህደር") ||
-        command.contains("history") ||
-        command.contains("log") ||
-        command.contains("scans")) {
-      final String alertText = isAmharic
-          ? "የቀድሞ ምርመራዎች ውጤት ማህደር እዚህ አለ።"
-          : "Opening your previous scan log history tracking table.";
-
+    } 
+    else if (has(["history", "log", "scans", "ታሪክ", "ማህደር"])) {
       speak(
-        alertText,
+        isAmharic
+            ? "የታሪክ ገጽ እንከፍታለን"
+            : "Opening history",
         forceLanguageCode: languageCode,
       );
 
       context.go('/history');
-    } else if (command.contains("መነሻ") ||
-        command.contains("ዋና") ||
-        command.contains("home") ||
-        command.contains("dashboard") ||
-        command.contains("main")) {
-      final String alertText = isAmharic
-          ? "ወደ ዋናው ማውጫ እየተመለስን ነው።"
-          : "Navigating back to main dashboard hub view.";
-
+    } 
+    else if (has(["home", "dashboard", "main", "መነሻ"])) {
       speak(
-        alertText,
+        isAmharic
+            ? "ወደ መነሻ ገጽ"
+            : "Going home",
         forceLanguageCode: languageCode,
       );
 
       context.go('/home');
-    } else if (command.contains("ማስተካከያ") ||
-        command.contains("ቅንብር") ||
-        command.contains("settings") ||
-        command.contains("profile") ||
-        command.contains("setup")) {
-      final String alertText = isAmharic
-          ? "የቅንብሮች ገጽን በመክፈት ላይ።"
-          : "Loading application settings configuration menu.";
-
+    } 
+    else if (has(["settings", "profile", "setup", "ቅንብር"])) {
       speak(
-        alertText,
+        isAmharic
+            ? "ወደ ቅንብር ገጽ"
+            : "Opening settings",
         forceLanguageCode: languageCode,
       );
 
       context.go('/settings');
-    } else {
-      final String alertText = isAmharic
-          ? "ትዕዛዙ አልገባኝም። እባክዎ እንደገና ይሞክሩ። ምርመር፣ ታሪክ፣ ወይም መነሻ ይበሉ።"
-          : "Command not recognized. Please try stating: scan, history, or home screen.";
-
+    } 
+    else {
       speak(
-        alertText,
+        isAmharic
+            ? "ትእዛዝ አልተረዳሁም"
+            : "Command not recognized",
         forceLanguageCode: languageCode,
       );
     }
