@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.plantai.system.farmer_mobile_app"
+    namespace = "com.new.farmer_mobile_app"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.plantai.system.farmer_mobile_app"
+        applicationId = "com.new.farmer_mobile_app"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode

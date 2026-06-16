@@ -217,7 +217,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       children: [
         TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.plantai.system.farmer_mobile_app',
+          userAgentPackageName: 'com.new.farmer_mobile_app',
         ),
         MarkerLayer(markers: markers),
       ],
