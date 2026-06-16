@@ -5,6 +5,13 @@ const User = require('../models/User');
 const Scan = require('../models/Scan'); 
 const authMiddleware = require('../middleware/authMiddleware'); 
 const userAuthMiddleware = require('../middleware/userAuthMiddleware'); 
+const admin = require('firebase-admin');
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.applicationDefault()
+  });
+}
 
 router.post('/register', async (req, res) => {
   try {
@@ -84,18 +91,67 @@ router.post('/login', async (req, res) => {
   }
 });
 
+router.post('/firebase-login', async (req, res) => {
+  try {
+    const { firebase_token } = req.body;
+
+    if (!firebase_token) {
+      return res.status(400).json({ msg: 'Firebase token required' });
+    }
+
+    const decoded = await admin.auth().verifyIdToken(firebase_token);
+
+    const phone_number = decoded.phone_number;
+
+    if (!phone_number) {
+      return res.status(400).json({ msg: 'Phone not found in token' });
+    }
+
+    let user = await User.findOne({ where: { phone_number } });
+
+    if (!user) {
+      user = await User.create({
+        full_name: 'Farmer',
+        phone_number: phone_number,
+        location: '',
+        language_pref: 'English',
+        status: 'Active'
+      });
+    }
+
+    const token = jwt.sign(
+      { id: user.id },
+      process.env.JWT_SECRET || 'fallback_secret_123',
+      { expiresIn: '30d' }
+    );
+
+    res.json({
+      token: token,
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        phone_number: user.phone_number,
+        location: user.location,
+        language_pref: user.language_pref
+      }
+    });
+
+  } catch (err) {
+    console.error("Firebase Login Error:", err);
+    res.status(500).json({ msg: 'Server error during firebase login' });
+  }
+});
+
 router.put('/profile', userAuthMiddleware, async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id);
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
-    // Update user fields from request body
     user.full_name = req.body.full_name || user.full_name;
     user.phone_number = req.body.phone_number || user.phone_number;
     user.location = req.body.location || user.location;
     user.language_pref = req.body.language_pref || user.language_pref;
 
-    // Update the image URL if provided in the JSON body
     if (req.body.profile_image) {
       user.profile_image = req.body.profile_image;
     }
@@ -110,7 +166,7 @@ router.put('/profile', userAuthMiddleware, async (req, res) => {
         phone_number: user.phone_number,
         location: user.location,
         language_pref: user.language_pref,
-        profile_image: user.profile_image // Return the new URL
+        profile_image: user.profile_image
       }
     });
   } catch (err) {
@@ -118,6 +174,7 @@ router.put('/profile', userAuthMiddleware, async (req, res) => {
     res.status(500).json({ msg: 'Server error updating profile' });
   }
 });
+
 router.get('/scans', userAuthMiddleware, async (req, res) => {
   try {
     const scans = await Scan.findAll({

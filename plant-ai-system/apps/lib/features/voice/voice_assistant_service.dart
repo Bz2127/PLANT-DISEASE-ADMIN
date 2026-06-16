@@ -20,11 +20,9 @@ class VoiceAssistantService {
     if (_isInitialized) return;
 
     try {
-      final PermissionStatus permissionStatus =
-          await Permission.microphone.request();
+      final status = await Permission.microphone.request();
 
-      if (!permissionStatus.isGranted) {
-        debugPrint("Microphone permission denied.");
+      if (!status.isGranted) {
         _isSpeechAvailable = false;
         return;
       }
@@ -34,21 +32,21 @@ class VoiceAssistantService {
         onStatus: (val) => debugPrint('STT Status: $val'),
       );
 
-      final Locale currentLocale = Localizations.localeOf(context);
-      final String languageCode = currentLocale.languageCode;
+      final locale = Localizations.localeOf(context);
+      final lang = locale.languageCode;
 
       final languages = await _flutterTts.getLanguages;
       _supportedLanguages.addAll(languages.cast<String>());
 
-      if (languageCode == 'am') {
+      if (lang == 'am') {
         await _flutterTts.setLanguage("am-ET");
         await _flutterTts.setSpeechRate(0.40);
-        await _flutterTts.setPitch(1.0);
       } else {
         await _flutterTts.setLanguage("en-US");
         await _flutterTts.setSpeechRate(0.50);
-        await _flutterTts.setPitch(1.0);
       }
+
+      await _flutterTts.setPitch(1.0);
 
       _isInitialized = true;
     } catch (e) {
@@ -61,7 +59,6 @@ class VoiceAssistantService {
 
     try {
       final lang = forceLanguageCode ?? "en";
-
       final ttsLang = lang == 'am' ? "am-ET" : "en-US";
 
       if (_supportedLanguages.contains(ttsLang)) {
@@ -103,16 +100,20 @@ class VoiceAssistantService {
         return;
       }
 
-      final Locale currentLocale = Localizations.localeOf(context);
+      final locale = Localizations.localeOf(context);
+      final isAmharic = locale.languageCode == 'am';
 
-      final String activeLocaleId =
-          currentLocale.languageCode == 'am' ? "am_ET" : "en_US";
+      final localeId = isAmharic ? "am_ET" : "en_US";
 
       onListeningStateChanged(true);
 
       await _speechToText.listen(
+        localeId: localeId,
+        cancelOnError: true,
+        listenFor: const Duration(seconds: 20),
+        pauseFor: const Duration(seconds: 4),
         onResult: (result) {
-          final command = result.recognizedWords.trim().toLowerCase();
+          final command = result.recognizedWords.toLowerCase().trim();
 
           if (result.finalResult) {
             onListeningStateChanged(false);
@@ -120,20 +121,15 @@ class VoiceAssistantService {
             _processCommand(
               context,
               command,
-              currentLocale.languageCode,
+              locale.languageCode,
             );
 
             onResult(command);
           }
         },
-        localeId: activeLocaleId,
-        cancelOnError: true,
-        listenFor: const Duration(seconds: 20),
-        pauseFor: const Duration(seconds: 4),
       );
     } catch (e) {
       onListeningStateChanged(false);
-      debugPrint("Voice error: $e");
     }
   }
 
@@ -146,64 +142,47 @@ class VoiceAssistantService {
     await _flutterTts.stop();
   }
 
+  bool _match(String cmd, List<String> words) {
+    return words.any((w) => cmd.contains(w));
+  }
+
   void _processCommand(
     BuildContext context,
     String command,
     String languageCode,
   ) {
-    if (!context.mounted || command.isEmpty) return;
-
-    final isAmharic = languageCode == 'am';
+    if (!context.mounted) return;
 
     final cmd = command.toLowerCase();
+    final isAm = languageCode == 'am';
 
-    bool has(List<String> words) {
-      return words.any((w) => cmd.contains(w));
+    if (_match(cmd, ["scan", "detect", "መርምር"])) {
+      speak(isAm ? "ምርመራ እየጀመርኩ ነው" : "Starting scan",
+          forceLanguageCode: languageCode);
+      context.go('/detection');
     }
 
-    if (has(["scan", "detect", "detection", "መርምር", "መተንተን"])) {
-      speak(
-        isAmharic
-            ? "ምርመራ እየጀመርኩ ነው"
-            : "Starting scan",
-        forceLanguageCode: languageCode,
-      );
-
-      context.go('/detection');
-    } 
-    else if (has(["history", "log", "scans", "ታሪክ", "ማህደር"])) {
-      speak(
-        isAmharic
-            ? "የታሪክ ገጽ እንከፍታለን"
-            : "Opening history",
-        forceLanguageCode: languageCode,
-      );
-
+    else if (_match(cmd, ["history", "log", "ታሪክ"])) {
+      speak(isAm ? "ታሪክ እንከፍታለን" : "Opening history",
+          forceLanguageCode: languageCode);
       context.go('/history');
-    } 
-    else if (has(["home", "dashboard", "main", "መነሻ"])) {
-      speak(
-        isAmharic
-            ? "ወደ መነሻ ገጽ"
-            : "Going home",
-        forceLanguageCode: languageCode,
-      );
+    }
 
+    else if (_match(cmd, ["home", "dashboard", "መነሻ"])) {
+      speak(isAm ? "ወደ መነሻ" : "Going home",
+          forceLanguageCode: languageCode);
       context.go('/home');
-    } 
-    else if (has(["settings", "profile", "setup", "ቅንብር"])) {
-      speak(
-        isAmharic
-            ? "ወደ ቅንብር ገጽ"
-            : "Opening settings",
-        forceLanguageCode: languageCode,
-      );
+    }
 
-      context.go('/settings');
-    } 
+    else if (_match(cmd, ["profile", "user"])) {
+      speak(isAm ? "ወደ ፕሮፋይል" : "Opening profile",
+          forceLanguageCode: languageCode);
+      context.go('/profile');
+    }
+
     else {
       speak(
-        isAmharic
+        isAm
             ? "ትእዛዝ አልተረዳሁም"
             : "Command not recognized",
         forceLanguageCode: languageCode,

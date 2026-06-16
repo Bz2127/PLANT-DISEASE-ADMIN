@@ -1,3 +1,13 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.google.gms:google-services:4.3.15'
+    }
+}
+
 allprojects {
     repositories {
         google()
@@ -21,9 +31,6 @@ tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
 
-// ✅ THE NUCLEAR FIX: FORCING CAMERA DEPENDENCIES
-// This forces all sub-plugins (like camera_android_camerax) to find
-// the missing CallbackToFutureAdapter class by using version 1.2.0.
 subprojects {
     configurations.all {
         resolutionStrategy {

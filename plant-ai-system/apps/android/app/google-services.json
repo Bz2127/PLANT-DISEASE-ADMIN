@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "576768860113",
+    "project_id": "chat-app-96a6d",
+    "storage_bucket": "chat-app-96a6d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:576768860113:android:cd51f776e58c200608caf0",
+        "android_client_info": {
+          "package_name": "com.new.farmer_mobile_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB84lGN78zVbwPKxtRAWJ0m5Cf5lnkFSI0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

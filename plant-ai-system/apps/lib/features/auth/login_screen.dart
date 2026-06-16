@@ -15,13 +15,13 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final VoiceAssistantService _voiceService = VoiceAssistantService();
   final AuthService _authService = AuthService();
-  
+
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  
+  final TextEditingController _otpController = TextEditingController();
+
   bool _isLoading = false;
-  bool _obscurePassword = true;
+  bool _otpSent = false;
 
   @override
   void initState() {
@@ -30,46 +30,53 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _initAndPlayInstruction() async {
-    if (kIsWeb) return; 
+    if (kIsWeb) return;
 
     try {
-     await _voiceService.initVoice(context);
-      await _voiceService.speak("እባክዎን ስልክ ቁጥርዎን ያስገቡ።");
+      await _voiceService.initVoice(context);
+      await _voiceService.speak("እባክዎ ስልክ ቁጥር ያስገቡ።");
       await _voiceService.speak("Please enter your phone number.");
-    } catch (e) {
-      print("TTS Speech engine safely bypassed on web channel: $e");
-    }
+    } catch (_) {}
   }
 
-  Future<void> _handleLogin() async {
+  Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    final String phone = _phoneController.text.trim();
-    final String password = _passwordController.text;
-
-    final bool isSuccess = await _authService.login(phone, password);
+    final phone = _phoneController.text.trim();
+    final success = await _authService.sendOtp(phone);
 
     if (!mounted) return;
 
     setState(() {
       _isLoading = false;
+      _otpSent = success;
     });
 
-    if (isSuccess) {
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("OTP failed to send")),
+      );
+    }
+  }
+
+  Future<void> _verifyOtp() async {
+    if (_otpController.text.trim().isEmpty) return;
+
+    setState(() => _isLoading = true);
+
+    final success = await _authService.verifyOtp(_otpController.text.trim());
+
+    if (!mounted) return;
+
+    setState(() => _isLoading = false);
+
+    if (success) {
       context.go('/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.redAccent,
-          content: Text(
-            "የስልክ ቁጥር ወይም የይለፍ ቃል ስህተት ነው።\nIncorrect phone number or password.",
-            style: TextStyle(fontSize: 16),
-          ),
-        ),
+        const SnackBar(content: Text("Invalid OTP")),
       );
     }
   }
@@ -81,18 +88,14 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(30.0),
+            padding: const EdgeInsets.all(30),
             child: Form(
               key: _formKey,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.lock_outline,
-                    color: Color(0xFF4CAF50),
-                    size: 80,
-                  ),
+                  const Icon(Icons.lock_outline, color: Color(0xFF4CAF50), size: 80),
                   const SizedBox(height: 20),
+
                   Text(
                     "Login",
                     style: GoogleFonts.notoSans(
@@ -101,22 +104,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const Text(
-                    "ወደ መለያዎ ይግቡ",
-                    style: TextStyle(color: Colors.grey, fontSize: 18),
-                  ),
+
                   const SizedBox(height: 40),
 
                   TextFormField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
                     maxLength: 10,
-                    buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                    style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.phone, color: Color(0xFF4CAF50)),
-                      hintText: "09... ወይም 07... (10 Digits)",
-                      hintStyle: const TextStyle(color: Colors.grey),
+                      hintText: "09... or 07...",
                       filled: true,
                       fillColor: const Color(0xFF1B3022),
                       border: OutlineInputBorder(
@@ -126,44 +124,35 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return "እባክዎን ስልክ ቁጥር ያስገቡ / Enter phone number";
+                        return "Enter phone number";
                       }
                       final regExp = RegExp(r'^(09|07)\d{8}$');
                       if (!regExp.hasMatch(value.trim())) {
-                        return "ልክ ያልሆነ ስልክ ቁጥር (Must be 10 digits starting with 09 or 07)";
+                        return "Invalid phone number";
                       }
                       return null;
                     },
                   ),
+
                   const SizedBox(height: 20),
 
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.vpn_key_outlined, color: Color(0xFF4CAF50)),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                          color: Colors.grey,
+                  if (_otpSent)
+                    TextFormField(
+                      controller: _otpController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.lock, color: Color(0xFF4CAF50)),
+                        hintText: "Enter OTP",
+                        filled: true,
+                        fillColor: const Color(0xFF1B3022),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: BorderSide.none,
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                      hintText: "Password (Optional for Passwordless Accounts)",
-                      hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-                      filled: true,
-                      fillColor: const Color(0xFF1B3022),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide.none,
                       ),
                     ),
-                  ),
+
                   const SizedBox(height: 40),
 
                   SizedBox(
@@ -176,27 +165,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(15),
                         ),
                       ),
-                      onPressed: _isLoading ? null : _handleLogin,
+                      onPressed: _isLoading
+                          ? null
+                          : (_otpSent ? _verifyOtp : _sendOtp),
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              "LOGIN / ግባ",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          : Text(
+                              _otpSent ? "VERIFY OTP" : "SEND OTP",
+                              style: const TextStyle(fontSize: 18),
                             ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  TextButton(
-                    onPressed: () => context.push('/register'),
-                    child: const Text(
-                      "Don't have an account? Register here.\nመለያ የለዎትም? እዚህ ይመዝገቡ።",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Color(0xFFB38B4D), fontSize: 14),
                     ),
                   ),
                 ],
@@ -211,7 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void dispose() {
     _phoneController.dispose();
-    _passwordController.dispose();
+    _otpController.dispose();
     super.dispose();
   }
 }
