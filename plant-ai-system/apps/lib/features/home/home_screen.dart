@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
 import '../../core/api/dio_client.dart';
 import '../advisory/advisory_screen.dart';
 
@@ -17,7 +18,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String _farmerName = "Loading...";
   String _farmerPhone = "";
   bool _isAmharic = false;
-  String _latestScanId = "0";
   Map<String, dynamic>? _latestNotification;
   String? _profileImage;
 
@@ -37,7 +37,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _farmerName = prefs.getString('user_name') ?? "Farmer (አራሽ)";
       _farmerPhone = prefs.getString('user_phone') ?? "";
       _isAmharic = (currentLang == 'Amharic' || currentLang == 'am');
-      _latestScanId = prefs.getString('latest_scan_id') ?? "0";
       _profileImage = prefs.getString('user_profile_image');
     });
   }
@@ -53,11 +52,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
         setState(() {
           _latestNotification = latest;
-          hasNewNotification =
-              latest['id'].toString() != lastSeenId;
+          hasNewNotification = latest['id'].toString() != lastSeenId;
         });
       }
     } catch (e) {}
+  }
+
+  Future<void> _openLatestAdvisory() async {
+    try {
+      final dio = DioClient.instance;
+
+      final response = await dio.get('/scans');
+      final data = response.data;
+
+      if (data != null && data.isNotEmpty) {
+        final latestScan = data[0];
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AdvisoryScreen(
+              scanId: latestScan['id'].toString(),
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No scan history found")),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error loading latest scan: $e");
+    }
   }
 
   @override
@@ -83,6 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 SizedBox(height: isSmallScreen ? 20 : 30),
                 _buildScanCard(context, size, isSmallScreen),
                 SizedBox(height: isSmallScreen ? 20 : 25),
+
                 Row(
                   children: [
                     _buildTile(
@@ -104,14 +131,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 120),
               ],
             ),
           ),
         ),
       ),
+
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: const VoiceMicButton(),
+
       bottomNavigationBar: BottomAppBar(
         color: const Color(0xFF1B3022),
         shape: const CircularNotchedRectangle(),
@@ -129,17 +159,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.history, color: Colors.grey),
                 onPressed: () => context.push('/history'),
               ),
-              const SizedBox(width: 40),
               IconButton(
                 icon: const Icon(Icons.tips_and_updates, color: Colors.grey),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AdvisoryScreen(scanId: _latestScanId),
-                    ),
-                  );
-                },
+                onPressed: _openLatestAdvisory,
               ),
               IconButton(
                 icon: const Icon(Icons.person, color: Colors.grey),
@@ -160,9 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: CircleAvatar(
             radius: 25,
             backgroundColor: const Color(0xFF1B3022),
-            backgroundImage: _profileImage != null
-                ? NetworkImage(_profileImage!)
-                : null,
+            backgroundImage: _profileImage != null ? NetworkImage(_profileImage!) : null,
             child: _profileImage == null
                 ? const Icon(Icons.person, color: Color(0xFF4CAF50))
                 : null,
@@ -183,50 +203,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               Text(
-                _isAmharic 
-                    ? "ጥሩ የመትከያ ቀን" 
-                    : "Good day for planting",
+                _isAmharic ? "ጥሩ የመትከያ ቀን" : "Good day for planting",
                 style: const TextStyle(color: Colors.grey, fontSize: 12),
               ),
             ],
           ),
         ),
 
-        Stack(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.notifications, color: Colors.white),
-              onPressed: () async {
-                final prefs = await SharedPreferences.getInstance();
-
-                if (_latestNotification != null) {
-                  await prefs.setString(
-                    'last_seen_notification_id',
-                    _latestNotification!['id'].toString(),
-                  );
-                }
-
-                setState(() {
-                  hasNewNotification = false;
-                });
-
-                context.push('/notifications');
-              },
-            ),
-            if (hasNewNotification)
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-          ],
+        IconButton(
+          icon: const Icon(Icons.notifications, color: Colors.white),
+          onPressed: () => context.push('/notifications'),
         ),
 
         IconButton(
@@ -247,13 +233,6 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(30),
@@ -262,11 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: EdgeInsets.symmetric(vertical: isSmall ? 30 : 50),
           child: Column(
             children: [
-              Icon(
-                Icons.camera_alt,
-                size: size.width * 0.18,
-                color: const Color(0xFF0D1B12),
-              ),
+              Icon(Icons.camera_alt, size: size.width * 0.18, color: const Color(0xFF0D1B12)),
               const SizedBox(height: 10),
               Text(
                 "Scan Plant",
@@ -307,25 +282,20 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(15),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: Colors.white, size: 32),
-                const SizedBox(height: 10),
-                Text(
-                  _isAmharic ? am : en,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.notoSans(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 32),
+              const SizedBox(height: 10),
+              Text(
+                _isAmharic ? am : en,
+                style: GoogleFonts.notoSans(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
