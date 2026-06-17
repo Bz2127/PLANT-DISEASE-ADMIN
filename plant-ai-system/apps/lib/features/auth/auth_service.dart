@@ -110,18 +110,7 @@ class AuthService {
         },
       );
 
-      if (response.data != null && response.data['token'] != null) {
-        final prefs = await SharedPreferences.getInstance();
-
-        await prefs.setString('auth_token', response.data['token']);
-
-        final user = response.data['user'];
-
-        await prefs.setString('user_id', user['id'].toString());
-        await prefs.setString('user_name', user['full_name']);
-        await prefs.setString('user_phone', user['phone_number']);
-        await prefs.setString('user_location', user['location'] ?? '');
-
+      if (response.data != null && response.data['user'] != null) {
         return true;
       }
 

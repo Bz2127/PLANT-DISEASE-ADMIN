@@ -40,8 +40,8 @@ router.post('/register', async (req, res) => {
       { expiresIn: '30d' }
     );
 
-    res.status(201).json({
-      token: realToken,
+   res.status(201).json({
+  msg: 'User registered successfully',
       user: {
         id: user.id,
         full_name: user.full_name,
