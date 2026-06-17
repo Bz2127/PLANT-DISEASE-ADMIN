@@ -176,6 +176,22 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                     ),
                   ),
+
+                  const SizedBox(height: 20),
+
+                  GestureDetector(
+                    onTap: () {
+                      context.go('/register');
+                    },
+                    child: const Text(
+                      "Don't have an account? Register",
+                      style: TextStyle(
+                        color: Color(0xFF4CAF50),
+                        fontSize: 16,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

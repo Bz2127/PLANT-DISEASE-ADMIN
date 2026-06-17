@@ -18,22 +18,19 @@ import 'package:farmer_mobile_app/features/notifications/notification_screen.dar
 class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/splash',
-    redirect: (BuildContext context, GoRouterState state) async {
-      final prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('auth_token');
-      final bool isLoggedIn =
-          token != null && token.isNotEmpty && token != 'fake_token_123';
-
+    refreshListenable: GoRouterRefreshStream(
+      Stream.periodic(const Duration(seconds: 1)),
+    ),
+    redirect: (BuildContext context, GoRouterState state) {
       final String currentPath = state.matchedLocation;
+
       final bool isAuthRoute =
           currentPath == '/login' || currentPath == '/register';
+
       final bool isSplashRoute =
           currentPath == '/splash' ||
           currentPath == '/onboarding' ||
           currentPath == '/language';
-
-      if (!isLoggedIn && !isAuthRoute && !isSplashRoute) return '/login';
-      if (isLoggedIn && isAuthRoute) return '/home';
 
       return null;
     },
@@ -102,4 +99,12 @@ class AppRouter {
       ),
     ],
   );
+}
+
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    stream.listen((_) {
+      notifyListeners();
+    });
+  }
 }
