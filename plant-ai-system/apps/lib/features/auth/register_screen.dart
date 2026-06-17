@@ -20,46 +20,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
   
   bool _isLoading = false;
 
-  Future<void> _handleRegistration() async {
-    if (!_formKey.currentState!.validate()) return;
+ Future<void> _handleRegistration() async {
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+  setState(() {
+    _isLoading = true;
+  });
 
-    final String name = _nameController.text.trim();
-    final String phone = _phoneController.text.trim();
-    final String location = _locationController.text.trim();
+  final String name = _nameController.text.trim();
+  final String phone = _phoneController.text.trim();
+  final String location = _locationController.text.trim();
 
-    // ✅ FIXED: Actively passing the inputs down down your actual network stack
-    final bool isSuccess = await _authService.register(
-      name: name,
-      phone: phone,
-      location: location,
-      password: '', // Passing empty to match passwordless account logic
-    );
+  final bool isSuccess = await _authService.register(
+    name: name,
+    phone: phone,
+    location: location,
+    password: '',
+  );
 
-    if (!mounted) return;
+  if (!mounted) return;
 
-    setState(() {
-      _isLoading = false;
-    });
+  setState(() {
+    _isLoading = false;
+  });
 
-    if (isSuccess) {
-      context.go('/home');
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.redAccent,
-          content: Text(
-            "ምዝገባው አልተሳካም። እባክዎ እንደገና ይሞክሩ።\nRegistration failed. Please try again.",
-            style: TextStyle(fontSize: 16),
-          ),
+  if (isSuccess) {
+    context.go('/login');
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: Colors.redAccent,
+        content: Text(
+          "ምዝገባው አልተሳካም። እባክዎ እንደገና ይሞክሩ።\nRegistration failed. Please try again.",
+          style: TextStyle(fontSize: 16),
         ),
-      );
-    }
+      ),
+    );
   }
-
+}
+ 
+ 
   @override
   Widget build(BuildContext context) {
     return Scaffold(

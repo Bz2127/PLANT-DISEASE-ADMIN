@@ -72,7 +72,7 @@ class AuthService {
       );
 
       if (response.data != null && response.data['token'] != null) {
-        await prefs.setString('auth_token', response.data['token']);
+        //await prefs.setString('auth_token', response.data['token']);
 
         final userData = response.data['user'];
 
