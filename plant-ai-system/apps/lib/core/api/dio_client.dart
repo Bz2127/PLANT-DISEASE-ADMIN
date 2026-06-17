@@ -18,13 +18,11 @@ class DioClient {
     if (_initialized) return;
     _initialized = true;
 
-    _dio.interceptors.add(
-      PrettyDioLogger(
-        requestHeader: true,
-        requestBody: true,
-        responseBody: true,
-      ),
-    );
+    _dio.interceptors.add(PrettyDioLogger(
+      requestHeader: true,
+      requestBody: true,
+      responseBody: true,
+    ));
 
     _dio.interceptors.add(
       InterceptorsWrapper(
@@ -36,12 +34,26 @@ class DioClient {
             options.headers['Authorization'] = 'Bearer $token';
           }
 
-          final appLang =
-              prefs.getString('user_lang') == 'Amharic' ? 'am' : 'en';
+          final langPref = prefs.getString('user_lang');
+          final appLang = (langPref == 'Amharic') ? 'am' : 'en';
 
-          options.queryParameters['lang'] = appLang;
+          options.queryParameters = {
+            ...options.queryParameters,
+            'lang': appLang,
+          };
 
           return handler.next(options);
+        },
+
+        onError: (e, handler) async {
+          if (e.response?.statusCode == 429) {
+            await Future.delayed(const Duration(seconds: 3));
+            try {
+              final retryResponse = await _dio.fetch(e.requestOptions);
+              return handler.resolve(retryResponse);
+            } catch (_) {}
+          }
+          return handler.next(e);
         },
       ),
     );
